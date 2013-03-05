@@ -10,17 +10,19 @@ inspect = require('util').inspect;
 
 SiteBuilder = (function() {
 
+  SiteBuilder.prototype.fsTaskQueue = qutil.taskQueue(35);
+
   function SiteBuilder(rootPath, contentTree) {
     this.contentTree = contentTree;
     this.rootPath = path.resolve(rootPath);
     this.cwd = path.resolve('.');
   }
 
-  SiteBuilder.prototype.build = function(vars, done) {
-    var dirTasks, fnList, logStarted, rootOutput, rootPath, tasks, tidUpdate, tq, trackerMap,
+  SiteBuilder.prototype.build = function(vars, doneBuildFn) {
+    var dirTasks, fnList, logStarted, rootOutput, rootPath, tasks, tidUpdate, trackerMap,
       _this = this;
     if (typeof vars === 'function') {
-      done = vars;
+      doneBuildFn = vars;
       vars = null;
     }
     rootPath = this.rootPath;
@@ -37,18 +39,15 @@ SiteBuilder = (function() {
     });
     trackerMap = {};
     fnList = [];
-    tq = qutil.taskQueue(this.limit);
     dirTasks = qutil.createTaskTracker(function() {
-      tq.extend(fnList);
+      _this.fsTaskQueue.extend(fnList);
       return fnList = null;
     });
+    tidUpdate = setInterval(this.logTasksUpdate.bind(this, tasks, trackerMap), this.msTasksUpdate || 2000);
     tasks = qutil.createTaskTracker(function() {
       clearInterval(tidUpdate);
-      return done();
+      return doneBuildFn();
     });
-    tidUpdate = setInterval(function() {
-      return console.warn("tasks active: " + tasks.active + " waiting on: " + (inspect(Object.keys(trackerMap))));
-    }, 2000);
     logStarted = this.logStarted.bind(this);
     return this.contentTree.visit(function(vkind, contentItem, keyPath) {
       var fullPath, objVars, output, relPath, renderAnswer;
@@ -102,7 +101,8 @@ SiteBuilder = (function() {
   SiteBuilder.prototype.fs = qutil.fs;
 
   SiteBuilder.prototype.renderAnswerEx = function(rx, err, what) {
-    var mtime, _ref, _ref1;
+    var mtime, _ref, _ref1,
+      _this = this;
     if ((err != null) && !this.logError(err, rx)) {
       return;
     }
@@ -111,17 +111,23 @@ SiteBuilder = (function() {
       if ((mtime != null) && rx.mtime && mtime <= rx.mtime) {
         this.logUnchanged(rx);
       } else {
-        if (what.pipe != null) {
-          what.pipe(this.fs.createWriteStream(rx.fullPath));
-        } else {
-          this.fs.writeFile(rx.fullPath, what);
-        }
-        this.logChanged(rx);
+        this.fsTaskQueue["do"](function() {
+          if (what.pipe != null) {
+            what.pipe(_this.fs.createWriteStream(rx.fullPath));
+          } else {
+            _this.fs.writeFile(rx.fullPath, what);
+          }
+          return _this.logChanged(rx);
+        });
       }
     }
   };
 
   SiteBuilder.prototype.logStarted = function(rx) {};
+
+  SiteBuilder.prototype.logTasksUpdate = function(tasks, trackerMap) {
+    return console.warn("tasks active: " + tasks.active + " waiting on: " + (inspect(Object.keys(trackerMap))));
+  };
 
   SiteBuilder.prototype.logError = function(err, rx) {
     console.error("ERROR['" + (path.relative(this.cwd, rx.fullPath)) + "'] :: " + err);

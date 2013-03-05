@@ -11,10 +11,9 @@
 Many concepts would best be explained with a few good examples.
 
 Showcase:
- - build sitemap
- - build blog RSS feed
- - composite to concat & minify JS & CSS
- - create 
+ - build sitemap from visitor
+ - create blog with generated RSS feed
+ - composite to concat and minify JS & CSS
 
 
 ## Documentation

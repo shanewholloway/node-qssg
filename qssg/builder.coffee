@@ -12,13 +12,14 @@ qutil = require('./util')
 {inspect} = require('util')
 
 class SiteBuilder
+  fsTaskQueue: qutil.taskQueue(35)
   constructor: (rootPath, @contentTree)->
     @rootPath = path.resolve(rootPath)
     @cwd = path.resolve('.')
 
-  build: (vars, done)->
+  build: (vars, doneBuildFn)->
     if typeof vars is 'function'
-      done = vars; vars = null
+      doneBuildFn = vars; vars = null
 
     rootPath = @rootPath
     rootOutput = Object.create null,
@@ -29,16 +30,9 @@ class SiteBuilder
     trackerMap = {}
 
     fnList = []
-    tq = qutil.taskQueue(@limit)
-    dirTasks = qutil.createTaskTracker ->
-      tq.extend fnList
-      fnList = null
-    tasks = qutil.createTaskTracker ->
-      clearInterval(tidUpdate)
-      done()
-    tidUpdate = setInterval(->
-        console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
-      2000)
+    dirTasks = qutil.createTaskTracker => @fsTaskQueue.extend fnList; fnList = null
+    tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
+    tasks = qutil.createTaskTracker -> clearInterval(tidUpdate); doneBuildFn()
 
     logStarted = @logStarted.bind(@)
     @contentTree.visit (vkind, contentItem, keyPath)=>
@@ -81,16 +75,19 @@ class SiteBuilder
       if mtime? and rx.mtime and mtime<=rx.mtime
         @logUnchanged(rx)
       else
-        if what.pipe?
-          what.pipe(@fs.createWriteStream(rx.fullPath))
-        else
-          @fs.writeFile(rx.fullPath, what)
-        @logChanged(rx)
+        @fsTaskQueue.do =>
+          if what.pipe?
+            what.pipe(@fs.createWriteStream(rx.fullPath))
+          else
+            @fs.writeFile(rx.fullPath, what)
+          @logChanged(rx)
     return
 
   logStarted: (rx)->
     #console.error "start['#{path.relative(@cwd, rx.fullPath)}']"
     return
+  logTasksUpdate: (tasks, trackerMap)->
+    console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
   logError: (err, rx)->
     console.error "ERROR['#{path.relative(@cwd, rx.fullPath)}'] :: #{err}"
     return

@@ -122,6 +122,9 @@ taskQueue = (limit, tgt, callback)->
   taskq = []
   addTask = (fn)->
     taskq.push(fn); self.step(+1); self
+  doTask = (fn)->
+    addTask (done)->
+      try fn() finally done()
   extendTasks = (fnList)->
     taskq = taskq.concat(fnList)
     self.step(fnList.length); self
@@ -144,6 +147,7 @@ taskQueue = (limit, tgt, callback)->
     completed: get:-> cq.completed
     inspect: value:-> "[taskQueue backlog: #{@backlog} active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
+    do: value: doTask
     extend: value: extendTasks
     step: value: step
     invokeTask: value: invokeTask
