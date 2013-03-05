@@ -108,7 +108,7 @@ class PluginMap extends PluginFactory
           @map[key] = pi
     return @invalidate()
 
-g_plugins = new PluginMap()
+exports.createPluginMap = -> new PluginMap()
+exports.plugins = exports.createPluginMap()
 exports.PluginMap = PluginMap
-exports.plugins = g_plugins
 

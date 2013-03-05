@@ -98,7 +98,11 @@ Site = (function() {
 
   Site.prototype.build = function(rootPath, vars, done) {
     var bldr;
-    vars = Object.create(vars, {
+    if (typeof vars === 'function') {
+      done = vars;
+      vars = null;
+    }
+    vars = Object.create(vars || null, {
       meta: {
         value: this.meta
       }
@@ -144,5 +148,6 @@ module.exports = {
   createSite: function(opt, plugins) {
     return new Site(opt, plugins);
   },
-  plugins: qplugins.plugins
+  plugins: qplugins.plugins,
+  createPluginMap: qplugins.createPluginMap
 };

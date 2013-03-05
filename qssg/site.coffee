@@ -63,7 +63,9 @@ class Site
     return root.walk(arguments...)
 
   build: (rootPath, vars, done)->
-    vars = Object.create vars, meta:value:@meta
+    if typeof vars is 'function'
+      done = vars; vars = null
+    vars = Object.create vars || null, meta:value:@meta
     bldr = new SiteBuilder(rootPath, @content)
     @done -> bldr.build(vars, done)
     return bldr
@@ -87,4 +89,5 @@ module.exports =
   SiteBuilder: SiteBuilder
   createSite: (opt, plugins)-> new Site(opt, plugins)
   plugins: qplugins.plugins
+  createPluginMap: qplugins.createPluginMap
 
