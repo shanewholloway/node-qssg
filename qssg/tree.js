@@ -19,7 +19,7 @@ BasicTree = (function() {
     },
     plugins: {
       get: function() {
-        return this.site.plugins;
+        return this.parent.plugins;
       }
     },
     matchRuleset: {
@@ -34,10 +34,7 @@ BasicTree = (function() {
   };
 
   function BasicTree(parent, entryOrPath, plugins) {
-    if (plugins != null) {
-      this.plugins = this.plugins.clone().merge(plugins);
-    }
-    this._init(parent, entryOrPath);
+    this._init(parent, entryOrPath, plugins);
   }
 
   BasicTree.prototype.initTreeContext = function() {
@@ -68,7 +65,15 @@ BasicTree = (function() {
     }
   };
 
-  BasicTree.prototype._init = function(parent, entryOrPath) {
+  BasicTree.prototype.initPlugins = function(plugins) {
+    if (plugins != null) {
+      return Object.defineProperty(this, 'plugins', {
+        value: this.plugins.clone().merge(plugins)
+      });
+    }
+  };
+
+  BasicTree.prototype._init = function(parent, entryOrPath, plugins) {
     this.parent = parent;
     this.site = this.parent.site;
     if ((entryOrPath != null ? entryOrPath.relPath : void 0) != null) {
@@ -78,6 +83,7 @@ BasicTree = (function() {
     }
     this.tasks = qutil.createTaskTracker();
     this.initRuleset(qrules);
+    this.initPlugins(plugins);
     this.initTreeContext();
     return this.initEntry();
   };

@@ -1,6 +1,6 @@
 {
   "name": "qssg",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "license": "MIT",
   "readmeFilename": "README.md",
   "description": "Qabex Static Site Generator (qssg)",

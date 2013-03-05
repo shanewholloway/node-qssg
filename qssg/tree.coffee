@@ -15,16 +15,14 @@ qutil = require('./util')
 class BasicTree
   Object.defineProperties @.prototype,
     walker: get:-> @site.walker
-    plugins: get:-> @site.plugins
+    plugins: get:-> @parent.plugins
     matchRuleset: get:-> @parent.matchRuleset
 
   #~ initialization
 
   isTree: -> true
   constructor: (parent, entryOrPath, plugins)->
-    if plugins?
-      @plugins = @plugins.clone().merge(plugins)
-    @_init(parent, entryOrPath)
+    @_init(parent, entryOrPath, plugins)
 
   initTreeContext: ->
     @ctx = @initCtx(@parent?.ctx)
@@ -37,8 +35,12 @@ class BasicTree
 
   initRuleset: (qrules)-> @matchRuleset = @matchRuleset
   initEntry: (entry)-> @walk(@entry) if (@entry)?
+  initPlugins: (plugins)->
+    if plugins?
+      Object.defineProperty @, 'plugins',
+        value: @plugins.clone().merge(plugins)
 
-  _init: (@parent, entryOrPath)->
+  _init: (@parent, entryOrPath, plugins)->
     @site = @parent.site
     if entryOrPath?.relPath?
       @entry = entryOrPath
@@ -47,6 +49,7 @@ class BasicTree
 
     @tasks = qutil.createTaskTracker()
     @initRuleset(qrules)
+    @initPlugins(plugins)
     @initTreeContext()
     @initEntry()
 
