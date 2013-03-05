@@ -14,13 +14,18 @@ exports = module.exports = Object.create(qpluginTypes)
 class PluginMap extends PluginFactory
   constructor:->
     super()
-    Object.defineProperty @, 'map', value: {}
-    @invalidate()
+    @reset()
+  reset: (map={})->
+    Object.defineProperty @, 'map', value: map
     @default = @addStaticType()
-  clone: ->
-    map = Object.create(@map)
-    return Object.create(@, map:value:map).invalidate()
-
+    return @invalidate()
+  freeze: (map)->
+    @addPluginsTo(map={}, true) if not map?
+    Object.defineProperty @, 'map', value: map
+    return @invalidate()
+  clone: (map)->
+    self = Object.create(@, map:value:Object.create(@map))
+    return self.invalidate()
   invalidate: ->
     @_cache = Object.create(@map); return @
 
@@ -91,7 +96,11 @@ class PluginMap extends PluginFactory
       tgt[key] = pi for own key, pi of @map
     return tgt
   merge: (plugins)->
-    if plugins.addPluginsTo?
+    if plugins is true
+      return @freeze()
+    else if plugins is false
+      return @reset()
+    else if plugins.addPluginsTo?
       plugins.addPluginsTo(@map)
     else
       for own key,pi of plugins

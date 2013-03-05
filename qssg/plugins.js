@@ -15,21 +15,38 @@ PluginMap = (function(_super) {
 
   function PluginMap() {
     PluginMap.__super__.constructor.call(this);
-    Object.defineProperty(this, 'map', {
-      value: {}
-    });
-    this.invalidate();
-    this["default"] = this.addStaticType();
+    this.reset();
   }
 
-  PluginMap.prototype.clone = function() {
-    var map;
-    map = Object.create(this.map);
-    return Object.create(this, {
+  PluginMap.prototype.reset = function(map) {
+    if (map == null) {
+      map = {};
+    }
+    Object.defineProperty(this, 'map', {
+      value: map
+    });
+    this["default"] = this.addStaticType();
+    return this.invalidate();
+  };
+
+  PluginMap.prototype.freeze = function(map) {
+    if (!(map != null)) {
+      this.addPluginsTo(map = {}, true);
+    }
+    Object.defineProperty(this, 'map', {
+      value: map
+    });
+    return this.invalidate();
+  };
+
+  PluginMap.prototype.clone = function(map) {
+    var self;
+    self = Object.create(this, {
       map: {
-        value: map
+        value: Object.create(this.map)
       }
-    }).invalidate();
+    });
+    return self.invalidate();
   };
 
   PluginMap.prototype.invalidate = function() {
@@ -145,7 +162,11 @@ PluginMap = (function(_super) {
 
   PluginMap.prototype.merge = function(plugins) {
     var key, pi;
-    if (plugins.addPluginsTo != null) {
+    if (plugins === true) {
+      return this.freeze();
+    } else if (plugins === false) {
+      return this.reset();
+    } else if (plugins.addPluginsTo != null) {
       plugins.addPluginsTo(this.map);
     } else {
       for (key in plugins) {
