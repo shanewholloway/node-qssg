@@ -90,9 +90,12 @@ Site = (function() {
 
   Site.prototype.plugins = qplugins.plugins.clone();
 
-  Site.prototype.walk = function(path, mountPath, plugins) {
+  Site.prototype.walk = function(path, opt) {
     var root;
-    this.roots.push(root = qtree.createRoot(this, mountPath, plugins));
+    if (opt == null) {
+      opt = {};
+    }
+    this.roots.push(root = qtree.createRoot(this, opt));
     return root.walk.apply(root, arguments);
   };
 

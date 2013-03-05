@@ -33,8 +33,11 @@ BasicTree = (function() {
     return true;
   };
 
-  function BasicTree(parent, entryOrPath, plugins) {
-    this._init(parent, entryOrPath, plugins);
+  function BasicTree(parent, entry, opt) {
+    if (opt == null) {
+      opt = {};
+    }
+    this._init(parent, entry, opt);
   }
 
   BasicTree.prototype.initTreeContext = function() {
@@ -73,17 +76,20 @@ BasicTree = (function() {
     }
   };
 
-  BasicTree.prototype._init = function(parent, entryOrPath, plugins) {
+  BasicTree.prototype._init = function(parent, entry, opt) {
     this.parent = parent;
+    if (opt == null) {
+      opt = {};
+    }
     this.site = this.parent.site;
-    if ((entryOrPath != null ? entryOrPath.relPath : void 0) != null) {
-      this.entry = entryOrPath;
-    } else if (entryOrPath != null) {
-      this.mountPoint = entryOrPath.toString();
+    if ((entry != null ? entry.relPath : void 0) != null) {
+      this.entry = entry;
+    } else if (opt.mount) {
+      this.mountPoint = opt.mount.toString();
     }
     this.tasks = qutil.createTaskTracker();
     this.initRuleset(qrules);
-    this.initPlugins(plugins);
+    this.initPlugins(opt.plugins);
     this.initTreeContext();
     return this.initEntry();
   };
@@ -440,7 +446,7 @@ module.exports = {
   Tree: Tree,
   CompositeTree: CompositeTree,
   ContextTree: ContextTree,
-  createRoot: function(site, mountPoint, plugins) {
-    return new Tree(site, mountPoint, plugins);
+  createRoot: function(site, opt) {
+    return new Tree(site, null, opt);
   }
 };

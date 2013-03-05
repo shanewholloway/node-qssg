@@ -21,8 +21,8 @@ class BasicTree
   #~ initialization
 
   isTree: -> true
-  constructor: (parent, entryOrPath, plugins)->
-    @_init(parent, entryOrPath, plugins)
+  constructor: (parent, entry, opt={})->
+    @_init(parent, entry, opt)
 
   initTreeContext: ->
     @ctx = @initCtx(@parent?.ctx)
@@ -40,16 +40,16 @@ class BasicTree
       Object.defineProperty @, 'plugins',
         value: @plugins.clone().merge(plugins)
 
-  _init: (@parent, entryOrPath, plugins)->
+  _init: (@parent, entry, opt={})->
     @site = @parent.site
-    if entryOrPath?.relPath?
-      @entry = entryOrPath
-    else if entryOrPath?
-      @mountPoint = entryOrPath.toString()
+    if entry?.relPath?
+      @entry = entry
+    else if opt.mount
+      @mountPoint = opt.mount.toString()
 
     @tasks = qutil.createTaskTracker()
     @initRuleset(qrules)
-    @initPlugins(plugins)
+    @initPlugins(opt.plugins)
     @initTreeContext()
     @initEntry()
 
@@ -266,6 +266,6 @@ module.exports =
   Tree: Tree
   CompositeTree: CompositeTree
   ContextTree: ContextTree
-  createRoot: (site, mountPoint, plugins)->
-    new Tree(site, mountPoint, plugins)
+  createRoot: (site, opt)->
+    new Tree(site, null, opt)
 

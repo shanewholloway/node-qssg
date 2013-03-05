@@ -58,8 +58,8 @@ class Site
 
   ctx: {}
   plugins: qplugins.plugins.clone()
-  walk: (path, mountPath, plugins)->
-    @roots.push(root = qtree.createRoot(@, mountPath, plugins))
+  walk: (path, opt={})->
+    @roots.push(root = qtree.createRoot(@, opt))
     return root.walk(arguments...)
 
   build: (rootPath, vars, done)->
