@@ -1,0 +1,21 @@
+{
+  "name": "qssg",
+  "version": "0.3.0",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "description": "Qabex Static Site Generator (qssg)",
+  "keywords": [ "static", "generator", "static site generator"],
+  "author": "Shane Holloway <shane.holloway@ieee.org>",
+
+  "main": "./qssg.js",
+  "directories": {"lib": "./qssg"},
+
+  "repository": { "type": "git",
+    "url": "git://github.com/shanewholloway/node-qssg.git" },
+  "scripts": { "test": "make test" },
+
+  "dependencies": {
+    "tromp": ">0.8",
+    "coffee-script": "~1.4.0"
+  }
+}
