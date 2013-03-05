@@ -28,8 +28,11 @@ class SiteBuilder
 
     trackerMap = {}
 
-    fnList = qutil.functionList.once()
-    dirTasks = qutil.createTaskTracker(-> fnList.invoke())
+    fnList = []
+    tq = qutil.taskQueue(@limit)
+    dirTasks = qutil.createTaskTracker ->
+      tq.extend fnList
+      fnList = null
     tasks = qutil.createTaskTracker ->
       clearInterval(tidUpdate)
       done()
@@ -46,23 +49,25 @@ class SiteBuilder
       if vkind is 'tree'
         @fs.makeDirs fullPath, dirTasks()
 
-      obj = Object.create rootOutput,
+      output = Object.create rootOutput,
         vkind: value: vkind
         relPath: value: relPath, enumerable: true
         fullPath: value: fullPath
         contentItem: value: contentItem
 
       objVars = Object.create vars,
-        output: value: obj, enumerable: true
+        output: value: output, enumerable: true
 
       renderAnswer = tasks =>
         delete trackerMap[relPath]
-        @renderAnswerEx(obj, arguments...)
+        @renderAnswerEx(output, arguments...)
       trackerMap[relPath] = renderAnswer
 
-      fnList.push ->
-        logStarted(obj)
-        contentItem.renderFn(objVars, renderAnswer)
+      fnList.push (taskDone)=>
+        @fs.stat output.fullPath, taskDone.wrap (err, stat)->
+          output.mtime = stat.mtime if stat?
+          logStarted(output)
+          contentItem.renderFn(objVars, renderAnswer)
 
       return true
 
@@ -72,15 +77,15 @@ class SiteBuilder
       return
 
     if what?
-      mtime = rx.contentItem.entry?.mtime
-      @fs.isChanged rx.fullPath, mtime, (changed)=>
-        if changed
-          if what.pipe?
-            what.pipe(@fs.createWriteStream(rx.fullPath))
-          else
-            @fs.writeFile(rx.fullPath, what)
-          @logChanged(rx)
-        else @logUnchanged(rx)
+      mtime = rx.contentItem?.entry?.mtime
+      if mtime? and rx.mtime and mtime<=rx.mtime
+        @logUnchanged(rx)
+      else
+        if what.pipe?
+          what.pipe(@fs.createWriteStream(rx.fullPath))
+        else
+          @fs.writeFile(rx.fullPath, what)
+        @logChanged(rx)
     return
 
   logStarted: (rx)->

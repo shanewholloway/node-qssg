@@ -44,33 +44,6 @@ fs.makeDirs = function(aPath, mode, callback) {
   return step(path.resolve(aPath), callback);
 };
 
-fs.isChanged = function(aPath, mtime, answerFn) {
-  var stat;
-  if (mtime) {
-    if (!(answerFn != null)) {
-      stat = fs.statSync(aPath);
-      return !(stat != null) || stat.mtime < mtime;
-    } else {
-      fs.stat(aPath, function(err, stat) {
-        return answerFn(!(stat != null) || (stat.mtime < mtime));
-      });
-    }
-  } else {
-    if (typeof answerFn === "function") {
-      answerFn(true);
-    }
-    return true;
-  }
-};
-
-fs.whenChanged = function(aPath, mtime, answerFn) {
-  return fs.isChanged(aPath, mtime, function(changed) {
-    if (changed) {
-      return answerFn();
-    }
-  });
-};
-
 exports.fs = fs;
 
 createTaskTracker = function() {

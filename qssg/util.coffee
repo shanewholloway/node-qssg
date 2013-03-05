@@ -27,21 +27,6 @@ fs.makeDirs = (aPath, mode, callback=->)->
 
   return step(path.resolve(aPath), callback)
 
-fs.isChanged = (aPath, mtime, answerFn) ->
-  if mtime
-    if not answerFn?
-      stat = fs.statSync(aPath)
-      return not stat? or stat.mtime < mtime
-    else
-      fs.stat aPath, (err, stat) ->
-        answerFn(not stat? or (stat.mtime < mtime))
-    return
-  else
-    answerFn?(true)
-    return true
-fs.whenChanged = (aPath, mtime, answerFn) ->
-  fs.isChanged aPath, mtime, (changed)->
-    answerFn() if changed
 exports.fs = fs
 
 

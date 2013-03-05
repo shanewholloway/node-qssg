@@ -110,7 +110,7 @@ taskQueue = (limit, tgt, callback)->
   if typeof tgt is 'function'
     callback = tgt; tgt=null
   if not (typeof limit is 'number')
-    tgt = limit; limit = (tgt.limit||9e9)+0
+    tgt = limit; limit = (tgt?.limit||9e9)+0
 
   cq = closureQueue
     finish: (cq, nActive)->
@@ -122,6 +122,9 @@ taskQueue = (limit, tgt, callback)->
   taskq = []
   addTask = (fn)->
     taskq.push(fn); self.step(+1); self
+  extendTasks = (fnList)->
+    taskq = taskq.concat(fnList)
+    self.step(fnList.length); self
   step = ->
     while taskq.length>0 and limit>=cq.active
       if self.invokeTask(taskq.shift(), cq)
@@ -141,6 +144,7 @@ taskQueue = (limit, tgt, callback)->
     completed: get:-> cq.completed
     inspect: value:-> "[taskQueue backlog: #{@backlog} active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
+    extend: value: extendTasks
     step: value: step
     invokeTask: value: invokeTask
     isIdle: value:-> taskq.length is 0 and cq.isIdle()

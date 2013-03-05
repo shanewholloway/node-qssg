@@ -196,7 +196,7 @@ closureQueue = function(tgt, callback) {
 exports.closureQueue = closureQueue;
 
 taskQueue = function(limit, tgt, callback) {
-  var addTask, cq, invokeTask, k, self, step, taskq, v;
+  var addTask, cq, extendTasks, invokeTask, k, self, step, taskq, v;
   if (typeof limit === 'function') {
     callback = limit;
     tgt = null;
@@ -208,7 +208,7 @@ taskQueue = function(limit, tgt, callback) {
   }
   if (!(typeof limit === 'number')) {
     tgt = limit;
-    limit = (tgt.limit || 9e9) + 0;
+    limit = ((tgt != null ? tgt.limit : void 0) || 9e9) + 0;
   }
   cq = closureQueue({
     finish: function(cq, nActive) {
@@ -228,6 +228,11 @@ taskQueue = function(limit, tgt, callback) {
   addTask = function(fn) {
     taskq.push(fn);
     self.step(+1);
+    return self;
+  };
+  extendTasks = function(fnList) {
+    taskq = taskq.concat(fnList);
+    self.step(fnList.length);
     return self;
   };
   step = function() {
@@ -281,6 +286,9 @@ taskQueue = function(limit, tgt, callback) {
       value: function() {
         return this.inspect();
       }
+    },
+    extend: {
+      value: extendTasks
     },
     step: {
       value: step
