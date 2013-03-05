@@ -28,24 +28,18 @@ Site = (function() {
       opt = {};
     }
     this.meta = Object.create(opt.meta || this.meta || null);
-    if (opt.plugins != null) {
-      this.plugins.merge(opt.plugins);
-    }
-    if (plugins != null) {
-      this.plugins.merge(plugins);
-    }
-    this._init(opt);
+    this._init(opt, plugins);
     this.content = qcontent.createRoot();
     this.roots = [];
   }
 
-  Site.prototype._init = function(opt) {
+  Site.prototype._init = function(opt, plugins) {
     if (opt == null) {
       opt = {};
     }
     this._initWalker(opt);
     this._initMatchRuleset(opt);
-    return this._initContext(opt);
+    return this._initContext(opt, plugins);
   };
 
   Site.prototype._initWalker = function(opt) {
@@ -81,9 +75,15 @@ Site = (function() {
     return qrules.standardRuleset(ruleset);
   };
 
-  Site.prototype._initContext = function(opt) {
+  Site.prototype._initContext = function(opt, plugins) {
     this.ctx = Object.create(opt.ctx || this.ctx);
-    return this.plugins = this.plugins.clone();
+    this.plugins = this.plugins.clone();
+    if (opt.plugins != null) {
+      this.plugins.merge(opt.plugins);
+    }
+    if (plugins != null) {
+      return this.plugins.merge(plugins);
+    }
   };
 
   Site.prototype.ctx = {};

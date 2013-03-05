@@ -22,7 +22,8 @@ class BasicTree
 
   isTree: -> true
   constructor: (parent, entryOrPath, plugins)->
-    @plugins = plugins if plugins?
+    if plugins?
+      @plugins = @plugins.clone().merge(plugins)
     @_init(parent, entryOrPath)
 
   initTreeContext: ->

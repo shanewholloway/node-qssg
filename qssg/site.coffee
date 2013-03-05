@@ -23,16 +23,14 @@ class Site
 
   constructor: (opt={}, plugins)->
     @meta = Object.create opt.meta||@meta||null
-    @plugins.merge(opt.plugins) if opt.plugins?
-    @plugins.merge(plugins) if plugins?
-    @_init(opt)
+    @_init(opt, plugins)
     @content = qcontent.createRoot()
     @roots = []
 
-  _init: (opt={})->
+  _init: (opt={}, plugins)->
     @_initWalker(opt)
     @_initMatchRuleset(opt)
-    @_initContext(opt)
+    @_initContext(opt, plugins)
 
   _initWalker: (opt={}) ->
     @walker = new tromp.WalkRoot(autoWalk:false)
@@ -50,9 +48,11 @@ class Site
   initMatchRuleset: (ruleset, qrules)->
     qrules.standardRuleset(ruleset)
 
-  _initContext: (opt)->
+  _initContext: (opt, plugins)->
     @ctx = Object.create(opt.ctx || @ctx)
     @plugins = @plugins.clone()
+    @plugins.merge(opt.plugins) if opt.plugins?
+    @plugins.merge(plugins) if plugins?
 
   #~ API & context
 

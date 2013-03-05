@@ -35,7 +35,7 @@ BasicTree = (function() {
 
   function BasicTree(parent, entryOrPath, plugins) {
     if (plugins != null) {
-      this.plugins = plugins;
+      this.plugins = this.plugins.clone().merge(plugins);
     }
     this._init(parent, entryOrPath);
   }
