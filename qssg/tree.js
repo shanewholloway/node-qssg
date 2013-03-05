@@ -33,7 +33,10 @@ BasicTree = (function() {
     return true;
   };
 
-  function BasicTree(parent, entryOrPath) {
+  function BasicTree(parent, entryOrPath, plugins) {
+    if (plugins != null) {
+      this.plugins = plugins;
+    }
     this._init(parent, entryOrPath);
   }
 
@@ -431,7 +434,7 @@ module.exports = {
   Tree: Tree,
   CompositeTree: CompositeTree,
   ContextTree: ContextTree,
-  createRoot: function(site, mountPoint) {
-    return new Tree(site, mountPoint);
+  createRoot: function(site, mountPoint, plugins) {
+    return new Tree(site, mountPoint, plugins);
   }
 };

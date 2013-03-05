@@ -21,8 +21,10 @@ class Site
 
   #~ initialization
 
-  constructor: (opt={})->
+  constructor: (opt={}, plugins)->
     @meta = Object.create opt.meta||@meta||null
+    @plugins.merge(opt.plugins) if opt.plugins?
+    @plugins.merge(plugins) if plugins?
     @_init(opt)
     @content = qcontent.createRoot()
     @roots = []
@@ -56,8 +58,8 @@ class Site
 
   ctx: {}
   plugins: qplugins.plugins.clone()
-  walk: (path, mountPath)->
-    @roots.push(root = qtree.createRoot(@, mountPath))
+  walk: (path, mountPath, plugins)->
+    @roots.push(root = qtree.createRoot(@, mountPath, plugins))
     return root.walk(arguments...)
 
   build: (rootPath, vars, done)->
@@ -83,6 +85,6 @@ class Site
 module.exports =
   Site: Site
   SiteBuilder: SiteBuilder
-  createSite: (opt)-> new Site(opt)
+  createSite: (opt, plugins)-> new Site(opt, plugins)
   plugins: qplugins.plugins
 

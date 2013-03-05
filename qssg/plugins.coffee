@@ -82,9 +82,22 @@ class PluginMap extends PluginFactory
       for i in input
         @map[i] = plugin
         #console.log 'reg:', [i], plugin
-    return @
+    return @invalidate()
 
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  addPluginsTo: (tgt, deep)->
+    if deep
+      tgt[key] = pi for key, pi of @map
+    else
+      tgt[key] = pi for own key, pi of @map
+    return tgt
+  merge: (plugins)->
+    if plugins.addPluginsTo?
+      plugins.addPluginsTo(@map)
+    else
+      for own key,pi of plugins
+        if pi.content? and pi.variable?
+          @map[key] = pi
+    return @invalidate()
 
 g_plugins = new PluginMap()
 exports.PluginMap = PluginMap

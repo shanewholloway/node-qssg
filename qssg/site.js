@@ -23,11 +23,17 @@ Site = (function() {
     }
   });
 
-  function Site(opt) {
+  function Site(opt, plugins) {
     if (opt == null) {
       opt = {};
     }
     this.meta = Object.create(opt.meta || this.meta || null);
+    if (opt.plugins != null) {
+      this.plugins.merge(opt.plugins);
+    }
+    if (plugins != null) {
+      this.plugins.merge(plugins);
+    }
     this._init(opt);
     this.content = qcontent.createRoot();
     this.roots = [];
@@ -84,9 +90,9 @@ Site = (function() {
 
   Site.prototype.plugins = qplugins.plugins.clone();
 
-  Site.prototype.walk = function(path, mountPath) {
+  Site.prototype.walk = function(path, mountPath, plugins) {
     var root;
-    this.roots.push(root = qtree.createRoot(this, mountPath));
+    this.roots.push(root = qtree.createRoot(this, mountPath, plugins));
     return root.walk.apply(root, arguments);
   };
 
@@ -135,8 +141,8 @@ Site = (function() {
 module.exports = {
   Site: Site,
   SiteBuilder: SiteBuilder,
-  createSite: function(opt) {
-    return new Site(opt);
+  createSite: function(opt, plugins) {
+    return new Site(opt, plugins);
   },
   plugins: qplugins.plugins
 };

@@ -21,7 +21,8 @@ class BasicTree
   #~ initialization
 
   isTree: -> true
-  constructor: (parent, entryOrPath)->
+  constructor: (parent, entryOrPath, plugins)->
+    @plugins = plugins if plugins?
     @_init(parent, entryOrPath)
 
   initTreeContext: ->
@@ -261,5 +262,6 @@ module.exports =
   Tree: Tree
   CompositeTree: CompositeTree
   ContextTree: ContextTree
-  createRoot: (site, mountPoint)-> new Tree(site, mountPoint)
+  createRoot: (site, mountPoint, plugins)->
+    new Tree(site, mountPoint, plugins)
 

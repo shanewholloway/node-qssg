@@ -121,7 +121,42 @@ PluginMap = (function(_super) {
         this.map[i] = plugin;
       }
     }
-    return this;
+    return this.invalidate();
+  };
+
+  PluginMap.prototype.addPluginsTo = function(tgt, deep) {
+    var key, pi, _ref, _ref1;
+    if (deep) {
+      _ref = this.map;
+      for (key in _ref) {
+        pi = _ref[key];
+        tgt[key] = pi;
+      }
+    } else {
+      _ref1 = this.map;
+      for (key in _ref1) {
+        if (!__hasProp.call(_ref1, key)) continue;
+        pi = _ref1[key];
+        tgt[key] = pi;
+      }
+    }
+    return tgt;
+  };
+
+  PluginMap.prototype.merge = function(plugins) {
+    var key, pi;
+    if (plugins.addPluginsTo != null) {
+      plugins.addPluginsTo(this.map);
+    } else {
+      for (key in plugins) {
+        if (!__hasProp.call(plugins, key)) continue;
+        pi = plugins[key];
+        if ((pi.content != null) && (pi.variable != null)) {
+          this.map[key] = pi;
+        }
+      }
+    }
+    return this.invalidate();
   };
 
   return PluginMap;
