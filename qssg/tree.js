@@ -114,6 +114,9 @@ BasicTree = (function() {
     if (walkKey === 'entry') {
       this.matchRuleset.matchRules(entry, this);
     }
+    if (walkKey === 'listed') {
+      this.tasks.defer(10, function() {});
+    }
     return true;
   };
 

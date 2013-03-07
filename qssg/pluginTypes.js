@@ -48,7 +48,7 @@ BasePlugin = (function() {
     outputs: makeRefError('output')
   });
 
-  BasePlugin.prototype.initOn = function(pluginMap, opt) {
+  BasePlugin.prototype.init = function(opt) {
     var k, v;
     if (opt != null) {
       for (k in opt) {
@@ -56,9 +56,6 @@ BasePlugin = (function() {
         v = opt[k];
         this[k] = v;
       }
-    }
-    if (typeof this.registerOn === "function") {
-      this.registerOn(pluginMap);
     }
     return this;
   };
@@ -87,18 +84,8 @@ BasePlugin = (function() {
     return this.splitExt(this.output)[0];
   };
 
-  BasePlugin.prototype.registerOn = function(pluginMap) {
-    if (this.ext != null) {
-      pluginMap.addPluginForKeys(this, this.ext);
-    }
-    if (this.output != null) {
-      if (this.ext != null) {
-        pluginMap.addPluginForKeys(this, this.ext, this.output);
-      }
-      if (this.input != null) {
-        return pluginMap.addPluginForKeys(this, this.input, this.output);
-      }
-    }
+  BasePlugin.prototype.registerPluginOn = function(pluginMap) {
+    return pluginMap.addPluginForExtIO(this, this.ext, this.intput, this.output);
   };
 
   BasePlugin.prototype.pluginProtocol = '\
@@ -298,30 +285,42 @@ StaticPlugin = (function(_super) {
     return StaticPlugin.__super__.constructor.apply(this, arguments);
   }
 
-  StaticPlugin.prototype.initOn = function() {
-    var ext, extensions, k, pluginMap, v, _i, _len;
-    pluginMap = arguments[0], extensions = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-    for (_i = 0, _len = extensions.length; _i < _len; _i++) {
-      ext = extensions[_i];
-      for (k in ext) {
-        if (!__hasProp.call(ext, k)) continue;
-        v = ext[k];
-        this[k] = v;
-      }
-      if (!(ext.length != null)) {
-        continue;
-      }
-      ext = splitExt(ext);
-      if (ext.length === 1) {
-        pluginMap.addPluginForKeys(this, ext);
-        pluginMap.addPluginForKeys(this, ext, '*');
-      } else if (ext.length === 2) {
-        pluginMap.addPluginForKeys(this, ext.slice(1), ext.slice(0, 1));
+  StaticPlugin.prototype.init = function() {
+    var k, opt, options, v, _i, _len;
+    options = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+    this.extList = [];
+    for (_i = 0, _len = options.length; _i < _len; _i++) {
+      opt = options[_i];
+      if (opt.length != null) {
+        this.extList.push(splitExt(opt));
       } else {
-        console.warn("Ignoreing invalid static extension " + ext);
+        for (k in opt) {
+          if (!__hasProp.call(opt, k)) continue;
+          v = opt[k];
+          this[k] = v;
+        }
       }
     }
     return this;
+  };
+
+  StaticPlugin.prototype.registerPluginOn = function(pluginMap) {
+    var ext, _i, _len, _ref, _results;
+    pluginMap.addPluginForExtIO(this, this.ext, this.intput, this.output);
+    _ref = this.extList || [];
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      ext = _ref[_i];
+      if (ext.length === 1) {
+        pluginMap.addPluginForKeys(this, ext);
+        _results.push(pluginMap.addPluginForKeys(this, ext, '*'));
+      } else if (ext.length === 2) {
+        _results.push(pluginMap.addPluginForKeys(this, ext.slice(1), ext.slice(0, 1)));
+      } else {
+        _results.push(console.warn("Ignoreing invalid static extension " + ext));
+      }
+    }
+    return _results;
   };
 
   StaticPlugin.prototype.content = function(entry, tree, vars, callback) {
@@ -567,7 +566,9 @@ PluginFactory = (function() {
   }
 
   PluginFactory.prototype._initPluginOn = function(pi, args) {
-    return pi.initOn.apply(pi, [this].concat(__slice.call(args)));
+    pi.init.apply(pi, args);
+    pi.registerPluginOn(this);
+    return pi;
   };
 
   PluginFactory.prototype.asPluginPipeline = function(pluginList, ext) {
@@ -584,7 +585,7 @@ PluginFactory = (function() {
   };
 
   PluginFactory.prototype.addPluginType = function(key, args) {
-    return addPluginTypeEx(key, args);
+    return this.addPluginTypeEx(key, args);
   };
 
   PluginFactory.prototype.addFileType = function(obj) {
@@ -593,6 +594,8 @@ PluginFactory = (function() {
       key = 'compile_render';
     } else if (obj.render != null) {
       key = 'rendered';
+    } else {
+      throw new Error("Unable to find a `compile()` or `render()` method");
     }
     return this.addPluginTypeEx(key, arguments);
   };

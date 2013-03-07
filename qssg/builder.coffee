@@ -83,20 +83,29 @@ class SiteBuilder
           @logChanged(rx)
     return
 
+  logPathsFor: (rx)->
+    dst: path.relative @cwd, rx.relPath
+    src: path.relative @cwd, rx.contentItem?.entry?.srcPath || rx.relPath
   logStarted: (rx)->
-    #console.error "start['#{path.relative(@cwd, rx.fullPath)}']"
+    #paths = @logPathsFor(rx)
+    #console.error "start['#{paths.src}'] -- '#{paths.dst}'"
     return
-  logTasksUpdate: (tasks, trackerMap)->
-    console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
   logError: (err, rx)->
-    console.error "ERROR['#{path.relative(@cwd, rx.fullPath)}'] :: #{err}"
+    paths = @logPathsFor(rx)
+    console.error "ERROR['#{paths.src}'] :: #{err}"
     return
   logChanged: (rx)->
-    console.error "WRITE['#{path.relative(@cwd, rx.fullPath)}']"
+    paths = @logPathsFor(rx)
+    console.error "WRITE['#{paths.src}'] -- '#{paths.dst}'"
     return
   logUnchanged: (rx)->
-    #console.error "unchanged ['#{path.relative(@cwd, rx.fullPath)}']"
+    #dstPath = path.relative @cwd, rx.relPath
+    #srcPath = path.relative @cwd, rx.contentItem?.entry?.srcPath || rx.relPath
+    #console.error "unchanged['#{srcPath}'] -- '#{dstPath}'"
     return
+
+  logTasksUpdate: (tasks, trackerMap)->
+    console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
 
 exports.SiteBuilder = SiteBuilder
 

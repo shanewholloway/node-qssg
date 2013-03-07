@@ -123,21 +123,33 @@ SiteBuilder = (function() {
     }
   };
 
+  SiteBuilder.prototype.logPathsFor = function(rx) {
+    var _ref, _ref1;
+    return {
+      dst: path.relative(this.cwd, rx.relPath),
+      src: path.relative(this.cwd, ((_ref = rx.contentItem) != null ? (_ref1 = _ref.entry) != null ? _ref1.srcPath : void 0 : void 0) || rx.relPath)
+    };
+  };
+
   SiteBuilder.prototype.logStarted = function(rx) {};
+
+  SiteBuilder.prototype.logError = function(err, rx) {
+    var paths;
+    paths = this.logPathsFor(rx);
+    console.error("ERROR['" + paths.src + "'] :: " + err);
+  };
+
+  SiteBuilder.prototype.logChanged = function(rx) {
+    var paths;
+    paths = this.logPathsFor(rx);
+    console.error("WRITE['" + paths.src + "'] -- '" + paths.dst + "'");
+  };
+
+  SiteBuilder.prototype.logUnchanged = function(rx) {};
 
   SiteBuilder.prototype.logTasksUpdate = function(tasks, trackerMap) {
     return console.warn("tasks active: " + tasks.active + " waiting on: " + (inspect(Object.keys(trackerMap))));
   };
-
-  SiteBuilder.prototype.logError = function(err, rx) {
-    console.error("ERROR['" + (path.relative(this.cwd, rx.fullPath)) + "'] :: " + err);
-  };
-
-  SiteBuilder.prototype.logChanged = function(rx) {
-    console.error("WRITE['" + (path.relative(this.cwd, rx.fullPath)) + "']");
-  };
-
-  SiteBuilder.prototype.logUnchanged = function(rx) {};
 
   return SiteBuilder;
 

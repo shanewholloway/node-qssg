@@ -68,6 +68,8 @@ class BasicTree
   walkNotify: (walkKey, entry)->
     if walkKey is 'entry'
       @matchRuleset.matchRules(entry, @)
+    if walkKey is 'listed'
+      @tasks.defer 10, -> # add a task so empty directories complete
     return true
   match: (entry, matchKey)-> @_match_doesNotUnderstand(entry, matchKey)
   _match_doesNotUnderstand: (entry, matchKey)->
