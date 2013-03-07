@@ -63,6 +63,11 @@ class PluginMap extends PluginFactory
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+  add: (plugins...)->
+    for pi in plugins
+      pi.registerPluginOn(@)
+    return @
+
   addPlugin: (extList, plugin)->
     if not plugin.isPlugin?()
       throw new Error("Expecting a plugin instance")
@@ -70,6 +75,12 @@ class PluginMap extends PluginFactory
     for ext in extList
       @map[splitExt(ext)] = plugin
     @invalidate()
+
+  addPluginForExtIO: (plugin, ext, input, output)->
+    @addPluginForKeys(plugin, ext) if ext?
+    if output?
+      @addPluginForKeys(plugin, ext, output) if ext?
+      @addPluginForKeys(plugin, input, output) if input?
 
   addPluginForKeys: (plugin, input, output)->
     if not plugin.isPlugin?()

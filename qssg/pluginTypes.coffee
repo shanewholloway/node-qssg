@@ -28,12 +28,10 @@ class BasePlugin
     inputs: makeRefError('input')
     outputs: makeRefError('output')
 
-  initOn: (pluginMap, opt)->
+  init: (opt)->
     if opt?
       for own k,v of opt
         @[k] = v
-
-    @registerOn?(pluginMap)
     return @
 
   inspect: ->
@@ -48,11 +46,8 @@ class BasePlugin
   splitExt: splitExt
   defaultExt: -> @splitExt(@output)[0]
 
-  registerOn: (pluginMap)->
-    pluginMap.addPluginForKeys(@, @ext) if @ext?
-    if @output?
-      pluginMap.addPluginForKeys(@, @ext, @output) if @ext?
-      pluginMap.addPluginForKeys(@, @input, @output) if @input?
+  registerPluginOn: (pluginMap)->
+    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
 
   #~ plugin protocol
 
@@ -165,13 +160,19 @@ exports.PipelinePlugin = PipelinePlugin
 
 
 class StaticPlugin extends BasicPlugin
-  initOn: (pluginMap, extensions...)->
-    for ext in extensions
-      for own k,v of ext
-        @[k] = v
-      if not ext.length?
-        continue
-      ext = splitExt(ext)
+  init: (options...)->
+    @extList = []
+    for opt in options
+      if opt.length?
+        @extList.push splitExt(opt)
+      else
+        for own k,v of opt
+          @[k] = v
+    return @
+
+  registerPluginOn: (pluginMap)->
+    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
+    for ext in @extList or []
       if ext.length is 1
         pluginMap.addPluginForKeys(@, ext)
         pluginMap.addPluginForKeys(@, ext, '*')
@@ -179,7 +180,7 @@ class StaticPlugin extends BasicPlugin
         pluginMap.addPluginForKeys(@, ext.slice(1), ext.slice(0,1))
       else
         console.warn "Ignoreing invalid static extension #{ext}"
-    return @
+
   content: (entry, tree, vars, callback)->
     entry.touch(false)
     callback(null, entry.readStream())
@@ -308,7 +309,10 @@ class PluginFactory
   constructor: ->
     @types = Object.create(@types)
 
-  _initPluginOn: (pi, args)-> pi.initOn(@, args...)
+  _initPluginOn: (pi, args)->
+    pi.init(args...)
+    pi.registerPluginOn(@)
+    return pi
 
   asPluginPipeline: (pluginList, ext)->
     return new PipelinePlugin(pluginList, ext)
@@ -317,16 +321,17 @@ class PluginFactory
     cls = @types[key]
     if not cls
       throw new Error("Plugin for type '#{key}' not found")
-    @_initPluginOn(new cls, args)
+    return @_initPluginOn(new cls, args)
   addPluginType: (key, args)->
-    addPluginTypeEx(key, args)
+    return @addPluginTypeEx(key, args)
 
   addFileType: (obj)->
     if obj.compile?
       key = 'compile_render'
     else if obj.render?
       key = 'rendered'
-    @addPluginTypeEx(key, arguments)
+    else throw new Error("Unable to find a `compile()` or `render()` method")
+    return @addPluginTypeEx(key, arguments)
 
   addStaticType: -> @addPluginTypeEx('static', arguments)
   addCompiledType: -> @addPluginTypeEx('compiled', arguments)
