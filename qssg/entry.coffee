@@ -30,7 +30,7 @@ class MatchEntry
   isWalkable: -> @src.isWalkable(arguments...)
   walk: -> @src.walk(arguments...)
 
-  constructor: (walkEntry)->
+  constructor: (walkEntry, baseTree, pluginMap)->
     ext = walkEntry.name.split('.')
     name0 = ext.shift()
 
@@ -39,9 +39,35 @@ class MatchEntry
       srcName0: value: name0
       srcExt: get:-> ext.slice()
       stat: value: walkEntry.stat
+      baseTree: value: baseTree
+      pluginMap: value: pluginMap
 
     @name0 = name0
     @ext = ext.slice()
+
+  toJSON: -> {path:@relPath, src:{path:@relPath, mode:@mode}}
+  inspect: -> "[#{@constructor.name} #{@mode}:'#{@relPath}' src:'#{@srcRelPath}']"
+  toString: -> @inspect()
+
+  walkPath: -> @src.path
+  walk: ->
+    if @isWalkable()
+      @node.root.walk(@, @node.target)
+
+  newContentTree: (key=@name0)->
+    return @contentTree = @baseTree.newTree(key)
+  addContentTree: (key=@name0)->
+    return @contentTree = @baseTree.addTree(key)
+
+  touch: (arg)->
+    if arg is null
+      delete @mtime
+    else
+      arg = new Date() if arg is true
+      @mtime = new Date(Math.max(@mtime||0, arg||0, @stat.mtime))
+    return @mtime
+
+  #~ accessing content of entry
 
   fs: require('fs')
   readStream: (options)->
@@ -56,20 +82,6 @@ class MatchEntry
     if @isFile
       return @fs.readFileSync(@src.path, encoding)
   loadModule: -> require(@src.path)
-
-  touch: (arg)->
-    if arg is null
-      delete @mtime
-    else
-      arg = new Date() if arg is true
-      @mtime = new Date(Math.max(@mtime||0, arg||0, @stat.mtime))
-    return @mtime
-
-  walkPath: -> @src.path
-
-  toJSON: -> {path:@relPath, src:{path:@relPath, mode:@mode}}
-  inspect: -> "[#{@constructor.name} #{@mode}:'#{@relPath}' src:'#{@srcRelPath}']"
-  toString: -> @inspect()
 
   OverlayMethods:
     read: (encoding='utf-8', callback)->

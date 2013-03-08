@@ -16,6 +16,6 @@
 
   "dependencies": {
     "tromp": ">0.8",
-    "coffee-script": "~1.4.0"
+    "coffee-script": "~1"
   }
 }

@@ -16,33 +16,25 @@ class PluginMap extends PluginFactory
     super()
     @reset()
   reset: (map={})->
-    Object.defineProperty @, 'map', value: map
+    Object.defineProperties @,
+      map:value:map
     @default = @addStaticType()
     return @invalidate()
   freeze: (map)->
     @addPluginsTo(map={}, true) if not map?
     Object.defineProperty @, 'map', value: map
     return @invalidate()
-  clone: (map)->
+  clone: ->
     self = Object.create @,
       map:value:Object.create(@map)
-      mapKind:value:Object.create(@mapKind)
     return self.invalidate()
   invalidate: ->
     @_cache = Object.create(@map); return @
 
-  findPlugin: (entry, matchKey)->
-    if not entry.kind0?
-      pi = @findPluginForExt(entry.ext)
-    else if (findPluginForKind = @mapKind[entry.kind0])?
-      pi = findPluginForKind(@, entry, matchKey)
-    else
-      ext = entry.ext.slice(0)
-      ext.unshift entry.kind0+':'
-      pi = @findPluginForExt(ext)
-
+  findPlugin: (entry, matchKind)->
+    pi = @findPluginForExt(entry.ext) or @default
     if pi.adapt?
-      pi = pi.adapt(@, entry, matchKey)
+      pi = pi.adapt(@, entry, matchKind)
     return pi or @default
 
   findPluginForExt: (ext)->

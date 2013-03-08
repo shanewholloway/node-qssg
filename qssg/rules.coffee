@@ -17,13 +17,9 @@ class Classifier extends events.EventEmitter
     @rulesets = []
     @_coreRules = @addRuleset(0, 'core')
 
-  asEntry: (srcEntry)->
-    new MatchEntry(srcEntry)
-
-  matchRules: (walkEntry, mx)=>
+  matchRules: (entry, mx)=>
     if not (typeof mx.match is 'function')
       throw new Error("Classifier `mx` must implement `match()`")
-    entry = @asEntry(walkEntry)
     for rules in @rulesets
       for fn in rules
         if fn(Object.create(entry), mx)
@@ -100,8 +96,8 @@ qrules =
     qrules.thenMatchEx(args)
   thenMatchEx: (args)->
     return (entry, mx)-> mx.match(entry, args...); return true
-  thenMatchKey: (key)->
-    return (entry, mx)-> mx.match(entry, key); return true
+  thenMatchKey: (kind)->
+    return (entry, mx)-> mx.match(entry, kind); return true
 
   testDirOrExt: (entry)->
     entry.isDirectory() or entry.ext
@@ -112,7 +108,7 @@ qrules =
         qrules.classify(/-(\w)-([^-].+)/, 'kind0 name0'),
         qrules.classify(/-([^-].+)-(\w)-?/, 'name0 kind0'),
         qrules.classify(/-([^-].+)/, 'name0', qrules.testDirOrExt)),
-      qrules.thenMatchKey(opt.key || 'context'))
+      qrules.thenMatchKey(opt.kind || 'context'))
     return ruleset
 
   compositeRuleset: (ruleset, opt={})->
@@ -120,13 +116,13 @@ qrules =
       qrules.any(
         qrules.classify(/([^-].+)-(\w)-?/, 'name0 kind0'),
         qrules.classify(/([^-].+)-/, 'name0', qrules.testDirOrExt)),
-      qrules.thenMatchKey(opt.key || 'composite'))
+      qrules.thenMatchKey(opt.kind || 'composite'))
     return ruleset
 
   simpleRuleset: (ruleset, opt={})->
     if opt.rulesetName is not false
       ruleset = ruleset.addRuleset(opt.w||1.0, opt.rulesetName||'simple')
-    ruleset.rule(qrules.thenMatchKey(opt.key || 'simple'))
+    ruleset.rule(qrules.thenMatchKey(opt.kind || 'simple'))
     return ruleset
 
   standardRuleset: (host, opt={})->

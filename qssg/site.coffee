@@ -11,9 +11,46 @@ tromp = require('tromp')
 
 qplugins = require('./plugins')
 qrules = require('./rules')
-qtree = require('./tree')
 qcontent = require('./content')
 {SiteBuilder} = require('./builder')
+{MatchEntry} = require('./entry')
+
+class MatchingWalker extends tromp.WalkRoot
+  constructor: (@ruleset, @tasks)->
+    super(autoWalk: false)
+    Object.defineProperty @, '_self_', value:@
+
+  instance: (content, pluginMap)->
+    Object.create @_self_,
+      content:{value:content}
+      pluginMap:{value:pluginMap||@pluginMap}
+
+  walkListing: (listing)->
+    if (entry = listing.node.entry)?
+      if not (tree = entry.tree)?
+        tree = entry.addContentTree()
+      return @instance(tree, entry.pluginMap)
+    return @
+
+  walkRootContent: (aPath, content, pluginMap)->
+    @instance(content, pluginMap).walk(aPath)
+
+  walkNotify: (op, args...)->
+    @["_op_"+op]?.apply(@, args)
+  _op_dir: (entry)->
+    entry = new MatchEntry(entry, @content, @pluginMap)
+    @ruleset.matchRules(entry, @)
+  _op_file: (entry)->
+    entry = new MatchEntry(entry, @content, @pluginMap)
+    @ruleset.matchRules(entry, @)
+
+  match: (entry, matchKind)->
+    pi = @pluginMap.findPlugin(entry, matchKind)
+    console.log 'match:', [matchKind, entry, pi]
+    #if entry.isDir()
+    #  fnKey = matchKind
+    #else fnKey = matchKind
+
 
 class Site
   Object.defineProperties @.prototype,
@@ -23,17 +60,17 @@ class Site
 
   constructor: (opt={}, plugins)->
     @meta = Object.create opt.meta||@meta||null
-    @_init(opt, plugins)
+    @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
-    @roots = []
 
-  _init: (opt={}, plugins)->
+    @_initPlugins(opt, plugins)
     @_initWalker(opt)
-    @_initMatchRuleset(opt)
-    @_initContext(opt, plugins)
 
   _initWalker: (opt={}) ->
-    @walker = new tromp.WalkRoot(autoWalk:false)
+    ruleset = qrules.classifier()
+    @initMatchRuleset(ruleset, qrules)
+
+    @walker = new MatchingWalker(ruleset, @tasks)
     @walker.reject(opt.reject || /node_modules/)
     @walker.accept(opt.accept) if opt.accept?
     @walker.filter(opt.filter) if opt.filter?
@@ -41,26 +78,28 @@ class Site
     return this
   initWalker: (walker)->
 
-  _initMatchRuleset: (opt={})->
-    @matchRuleset = rs = qrules.classifier()
-    @initMatchRuleset(rs, qrules)
-
   initMatchRuleset: (ruleset, qrules)->
     qrules.standardRuleset(ruleset)
 
-  _initContext: (opt, plugins)->
-    @ctx = Object.create(opt.ctx || @ctx)
+  #~ Plugins
+
+  plugins: qplugins.plugins.clone()
+  _initPlugins: (opt, plugins)->
     @plugins = @plugins.clone()
     @plugins.merge(opt.plugins) if opt.plugins?
     @plugins.merge(plugins) if plugins?
 
   #~ API & context
 
-  ctx: {}
-  plugins: qplugins.plugins.clone()
-  walk: (path, opt={})->
-    @roots.push(root = qtree.createRoot(@, opt))
-    return root.walk(arguments...)
+  walk: (aPath, opt={})->
+    if opt.plugins?
+      plugins = @plugins.clone()
+      plugins.merge(opt.plugins)
+    else plugins = @plugins
+
+    #tree = @content.addTree(opt.mount)
+    tree = null
+    @walker.walkRootContent aPath, tree, plugins
 
   build: (rootPath, vars, done)->
     if typeof vars is 'function'

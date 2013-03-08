@@ -8,45 +8,52 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
 
-class ContentBase
+class ContentBaseNode
   Object.defineProperties @.prototype,
     dependencies: get: -> @deps
     deps: get: -> @deps=[]
 
-  isContentItem: -> true
+  isContentNode: -> true
   init: (container, options)->
+    @ctx = @initCtx(container?.ctx)
     if options?
       @[k]=v for k,v of options
+
+  initCtx: (ctx)-> ctx || {}
 
   visit: (visitor, keyPath)->
     throw new Error("Subclass responsibility: #{@constructor.name}::visit()")
 
-  compositeWith: (contentItem, key, container)->
-    comp = new @_.ContentComposite(container, key)
+  renderFn: (vars, answerFn)-> answerFn()
+
+  compositeWith: (key, contentItem, container)->
+    comp = new ContentComposite(container, key)
+    comp.addItem(@key, @)
     comp.addItem(key, contentItem)
     return comp
 
 
-class ContentItem extends ContentBase
+class ContentItem extends ContentBaseNode
   kind: 'item'
-  constructor: (container, @key, @renderFn)->
+  constructor: (container, @key)->
   visit: (visitor, keyPath=[])->
     visitor(@kind, @, keyPath.concat([@key]))
 
 
-class ContentComposite extends ContentBase
-  kind: 'list'
-  constructor: (container, @key, @renderFn)->
+
+class ContentComposite extends ContentBaseNode
+  kind: 'composite'
+  constructor: (container, @key)->
     @list = []
 
   addItem: (key, item)->
-    if not item.isContentItem()
+    if not item.isContentNode()
       throw new Error("Can only add ContentItem objects")
 
     @list.push(item)
     return item
 
-  compositeWith: (contentItem, key, container)->
+  compositeWith: (key, contentItem, container)->
     @list.push(contentItem)
     return @
 
@@ -62,17 +69,17 @@ class ContentComposite extends ContentBase
     return true
 
 
-class ContentTree extends ContentBase
+class ContentTree extends ContentBaseNode
   kind: 'tree'
-  constructor: (container, @key, @renderFn)->
+  constructor: (container, @key)->
     @items = {}
 
   addItem: (key, item)->
-    if not item.isContentItem()
-      throw new Error("Can only add ContentItem objects")
+    if not item.isContentNode()
+      throw new Error("Can only add ContentNode objects")
 
     if (curItem = @items[key])?
-      item = curItem.compositeWith(item, key, @)
+      item = curItem.compositeWith(key, item, @)
     @items[key] = item
     return item
 
@@ -91,8 +98,7 @@ class ContentTree extends ContentBase
 
 class ContentRoot extends ContentComposite
   kind: 'root'
-  constructor: (key, renderFn)->
-    super(null, key, renderFn)
+  constructor: (key)-> super(null, key)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -100,19 +106,24 @@ class ContentCollectionMixin
   ContentItem: ContentItem
   ContentTree: ContentTree
 
-  newContent: (container, key, renderFn)->
-    new @.ContentItem(container, key, renderFn)
-  addContent: (key, renderFn, args...)->
-    item = @newContent(@, key, renderFn)
-    item.init(@, args...) if args.length?
-    return @addItem(key, item)
+  initCtx: (ctx)-> Object.create(ctx||null)
+  newContentEx: (container, key, argsEx)->
+    item = new @.ContentItem(container, key)
+    item.init(@, argsEx...) if argsEx?
+    return item
+  newContent: (key, args...)->
+    @newContentEx(@, key, args)
+  addContent: (key, args...)->
+    @addItem key, @newContentEx(@, key, args)
 
-  newTree: (container, key, renderFn)->
-    new (@.ContentTree||@.constructor)(container, key, renderFn)
-  addTree: (key, renderFn, args...)->
-    item = @newTree(@, key, renderFn)
-    item.init(@, args...) if args.length?
-    return @addItem(key, item)
+  newTreeEx: (container, key, argsEx)->
+    item = new @.ContentTree(container, key)
+    item.init(@, argsEx...) if argsEx.length?
+    return item
+  newTree: (container, key, args...)->
+    @newTree(@, key, args)
+  addTree: (key, args...)->
+    @addItem key, @newTree(@, key, args)
 
   @mixInto = (tgtClass)->
     tgt = tgtClass.prototype || tgtClass
@@ -126,11 +137,11 @@ ContentCollectionMixin.mixInto(ContentComposite)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 module.exports =
-  ContentBase: ContentBase
+  ContentBaseNode: ContentBaseNode
   ContentCollectionMixin: ContentCollectionMixin
 
   ContentItem: ContentItem
   ContentTree: ContentTree
   ContentRoot: ContentRoot
-  createRoot: (renderFn)-> new ContentRoot(renderFn)
+  createRoot: -> new ContentRoot()
 
