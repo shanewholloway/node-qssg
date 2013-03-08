@@ -24,24 +24,36 @@ class PluginMap extends PluginFactory
     Object.defineProperty @, 'map', value: map
     return @invalidate()
   clone: (map)->
-    self = Object.create(@, map:value:Object.create(@map))
+    self = Object.create @,
+      map:value:Object.create(@map)
+      mapKind:value:Object.create(@mapKind)
     return self.invalidate()
   invalidate: ->
     @_cache = Object.create(@map); return @
 
   findPlugin: (entry, matchKey)->
-    ext = entry.ext
-    if entry.kind0?
-      (ext=ext.slice(0)).unshift entry.kind0+':'
+    if not entry.kind0?
+      pi = @findPluginForExt(entry.ext)
+    else if (findPluginForKind = @mapKind[entry.kind0])?
+      pi = findPluginForKind(@, entry, matchKey)
+    else
+      ext = entry.ext.slice(0)
+      ext.unshift entry.kind0+':'
+      pi = @findPluginForExt(ext)
 
-    if not (pi=@_cache[ext])?
-      @_cache[ext] = pi = @findPluginForExt(ext)
     if pi.adapt?
       pi = pi.adapt(@, entry, matchKey)
     return pi or @default
 
   findPluginForExt: (ext)->
+    if not (pi=@_cache[ext])?
+      @_cache[ext] = pi = @_findPluginForExt(ext)
+    return pi
+
+  _findPluginForExt: (ext)->
     n = ext.length
+    if n is 0
+      return @map[0]
     pi = @map[ext[n-1]]
     if n > 1
       pi_list = (@_lookupPair(ext[i],ext[i+1]) for i in [n-2..0])

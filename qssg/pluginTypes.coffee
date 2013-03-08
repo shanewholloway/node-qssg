@@ -52,7 +52,7 @@ class BasePlugin
   #~ plugin protocol
 
   pluginProtocol: '
-    content variable composite compositeFile evaluate
+    content variable composite compositeFile
     subTree ctxTree
     rename bindContent
     '.split(' ')
@@ -65,8 +65,6 @@ class BasePlugin
     @notImplemented('composite', entry, callback)
   compositeFile: (entry, tree, callback)->
     @notImplemented('compositeFile', entry, callback)
-  evaluate: (entry, tree, callback)->
-    @notImplemented('evaluate', entry, callback)
 
   if 0 # optional plugin protocol
     adapt: (pluginMap, entry, matchKey)-> @

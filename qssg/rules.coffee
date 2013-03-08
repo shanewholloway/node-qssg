@@ -106,25 +106,20 @@ qrules =
   testDirOrExt: (entry)->
     entry.isDirectory() or entry.ext
 
-  evaluateRuleset: (ruleset, opt={})->
-    ruleset.rule(
-      qrules.classify(/_(.+)_/, 'name0'),
-      qrules.thenMatchKey(opt.key || 'evaluate'))
-    return ruleset
-
   contextRuleset: (ruleset, opt={})->
     ruleset.rule(
       qrules.any(
-        qrules.classify(/_(.)_(.+)/, 'kind0 name0'),
-        qrules.classify(/_(.+)/, 'name0', qrules.testDirOrExt)),
+        qrules.classify(/-(\w)-([^-].+)/, 'kind0 name0'),
+        qrules.classify(/-([^-].+)-(\w)-?/, 'name0 kind0'),
+        qrules.classify(/-([^-].+)/, 'name0', qrules.testDirOrExt)),
       qrules.thenMatchKey(opt.key || 'context'))
     return ruleset
 
   compositeRuleset: (ruleset, opt={})->
     ruleset.rule(
       qrules.any(
-        qrules.classify(/(.+)_(.)_/, 'name0 kind0'),
-        qrules.classify(/(.+)_/, 'name0', qrules.testDirOrExt)),
+        qrules.classify(/([^-].+)-(\w)-?/, 'name0 kind0'),
+        qrules.classify(/([^-].+)-/, 'name0', qrules.testDirOrExt)),
       qrules.thenMatchKey(opt.key || 'composite'))
     return ruleset
 
@@ -135,7 +130,6 @@ qrules =
     return ruleset
 
   standardRuleset: (host, opt={})->
-    @evaluateRuleset(host, opt.evaluate)
     @contextRuleset(host, opt.context)
     @compositeRuleset(host, opt.composite)
     @simpleRuleset(host, opt.simple)

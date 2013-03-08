@@ -89,7 +89,7 @@ BasePlugin = (function() {
   };
 
   BasePlugin.prototype.pluginProtocol = '\
-    content variable composite compositeFile evaluate\
+    content variable composite compositeFile\
     subTree ctxTree\
     rename bindContent\
     '.split(' ');
@@ -108,10 +108,6 @@ BasePlugin = (function() {
 
   BasePlugin.prototype.compositeFile = function(entry, tree, callback) {
     return this.notImplemented('compositeFile', entry, callback);
-  };
-
-  BasePlugin.prototype.evaluate = function(entry, tree, callback) {
-    return this.notImplemented('evaluate', entry, callback);
   };
 
   if (0) {

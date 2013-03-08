@@ -309,16 +309,6 @@ BasicTreeDispatch = (function(_super) {
   };
 
   if (0) {
-    BasicTreeDispatch.prototype.match_evaluate = function(entry, plugin) {};
-    BasicTreeDispatch.prototype.match_evaluate_dir = function(entry, plugin) {};
-    BasicTreeDispatch.prototype.match_evaluate_file = function(entry, plugin) {};
-  }
-
-  BasicTreeDispatch.prototype.match_evaluate = function(entry, plugin) {
-    plugin.evaluate(entry, this, this.taskEvaluate(entry));
-  };
-
-  if (0) {
     BasicTreeDispatch.prototype.match_context = function(entry, plugin) {};
     BasicTreeDispatch.prototype.match_context_dir = function(entry, plugin) {};
     BasicTreeDispatch.prototype.match_context_file = function(entry, plugin) {};

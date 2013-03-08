@@ -45,6 +45,9 @@ PluginMap = (function(_super) {
     self = Object.create(this, {
       map: {
         value: Object.create(this.map)
+      },
+      mapKind: {
+        value: Object.create(this.mapKind)
       }
     });
     return self.invalidate();
@@ -56,13 +59,15 @@ PluginMap = (function(_super) {
   };
 
   PluginMap.prototype.findPlugin = function(entry, matchKey) {
-    var ext, pi;
-    ext = entry.ext;
-    if (entry.kind0 != null) {
-      (ext = ext.slice(0)).unshift(entry.kind0 + ':');
-    }
-    if (!((pi = this._cache[ext]) != null)) {
-      this._cache[ext] = pi = this.findPluginForExt(ext);
+    var ext, findPluginForKind, pi;
+    if (!(entry.kind0 != null)) {
+      pi = this.findPluginForExt(entry.ext);
+    } else if ((findPluginForKind = this.mapKind[entry.kind0]) != null) {
+      pi = findPluginForKind(this, entry, matchKey);
+    } else {
+      ext = entry.ext.slice(0);
+      ext.unshift(entry.kind0 + ':');
+      pi = this.findPluginForExt(ext);
     }
     if (pi.adapt != null) {
       pi = pi.adapt(this, entry, matchKey);
@@ -71,8 +76,19 @@ PluginMap = (function(_super) {
   };
 
   PluginMap.prototype.findPluginForExt = function(ext) {
+    var pi;
+    if (!((pi = this._cache[ext]) != null)) {
+      this._cache[ext] = pi = this._findPluginForExt(ext);
+    }
+    return pi;
+  };
+
+  PluginMap.prototype._findPluginForExt = function(ext) {
     var i, n, pi, pi_list;
     n = ext.length;
+    if (n === 0) {
+      return this.map[0];
+    }
     pi = this.map[ext[n - 1]];
     if (n > 1) {
       pi_list = (function() {

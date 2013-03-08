@@ -191,25 +191,18 @@ qrules = {
   testDirOrExt: function(entry) {
     return entry.isDirectory() || entry.ext;
   },
-  evaluateRuleset: function(ruleset, opt) {
-    if (opt == null) {
-      opt = {};
-    }
-    ruleset.rule(qrules.classify(/_(.+)_/, 'name0'), qrules.thenMatchKey(opt.key || 'evaluate'));
-    return ruleset;
-  },
   contextRuleset: function(ruleset, opt) {
     if (opt == null) {
       opt = {};
     }
-    ruleset.rule(qrules.any(qrules.classify(/_(.)_(.+)/, 'kind0 name0'), qrules.classify(/_(.+)/, 'name0', qrules.testDirOrExt)), qrules.thenMatchKey(opt.key || 'context'));
+    ruleset.rule(qrules.any(qrules.classify(/-(\w)-([^-].+)/, 'kind0 name0'), qrules.classify(/-([^-].+)-(\w)-?/, 'name0 kind0'), qrules.classify(/-([^-].+)/, 'name0', qrules.testDirOrExt)), qrules.thenMatchKey(opt.key || 'context'));
     return ruleset;
   },
   compositeRuleset: function(ruleset, opt) {
     if (opt == null) {
       opt = {};
     }
-    ruleset.rule(qrules.any(qrules.classify(/(.+)_(.)_/, 'name0 kind0'), qrules.classify(/(.+)_/, 'name0', qrules.testDirOrExt)), qrules.thenMatchKey(opt.key || 'composite'));
+    ruleset.rule(qrules.any(qrules.classify(/([^-].+)-(\w)-?/, 'name0 kind0'), qrules.classify(/([^-].+)-/, 'name0', qrules.testDirOrExt)), qrules.thenMatchKey(opt.key || 'composite'));
     return ruleset;
   },
   simpleRuleset: function(ruleset, opt) {
@@ -226,7 +219,6 @@ qrules = {
     if (opt == null) {
       opt = {};
     }
-    this.evaluateRuleset(host, opt.evaluate);
     this.contextRuleset(host, opt.context);
     this.compositeRuleset(host, opt.composite);
     this.simpleRuleset(host, opt.simple);

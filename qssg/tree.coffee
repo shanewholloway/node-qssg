@@ -184,18 +184,6 @@ class BasicTreeDispatch extends BasicTree
 
 
 
-  if 0 # match evaluate dispatch api
-    match_evaluate: (entry, plugin)->
-    match_evaluate_dir: (entry, plugin)->
-    match_evaluate_file: (entry, plugin)->
-
-  # standard impl. of evaluate dispatch
-  match_evaluate: (entry, plugin)->
-    plugin.evaluate(entry, @, @taskEvaluate(entry))
-    return
-
-
-
   if 0 # match context dispatch api
     match_context: (entry, plugin)->
     match_context_dir: (entry, plugin)->
