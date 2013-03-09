@@ -12,6 +12,7 @@ qrules = require('./rules')
 qcontent = require('./content')
 qentry = require('./entry')
 qbuilder = require('./builder')
+qutil = require('./util')
 
 class Site
   Object.defineProperties @.prototype,
@@ -24,6 +25,7 @@ class Site
     @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
 
+    @tasks = qutil.createTaskTracker()
     @_initPlugins(opt, plugins)
     @_initWalker(opt)
 
@@ -63,10 +65,15 @@ class Site
     @walker.walkRootContent aPath, tree, plugins
 
   matchEntryPlugin: (pi, entry, matchKind)->
-    console.log 'match:', [matchKind, entry, pi]
-    #if entry.isDir()
-    #  fnKey = matchKind
-    #else fnKey = matchKind
+    methKey = matchKind
+    methKey +='Dir' if entry.isDirectory()
+    if (method = pi[methKey])?.bind?
+      @tasks.defer method.bind(pi, entry)
+    else @_plugin_dnu(pi, methKey)
+
+
+  _plugin_dnu: (pi, method)->
+    console.warn "Plugin #{pi} does not implement method '#{method}'"
 
   build: (rootPath, vars, done)->
     if typeof vars is 'function'

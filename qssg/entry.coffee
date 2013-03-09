@@ -57,9 +57,16 @@ class MatchEntry
       @node.root.walk(@, @node.target)
 
   newContentTree: (key=@name0)->
-    return @contentTree = @baseTree.newTree(key)
+    @contentTree = @baseTree.newTree(key)
+    return @contentItem = @contentTree
   addContentTree: (key=@name0)->
-    return @contentTree = @baseTree.addTree(key)
+    @contentTree = @baseTree.addTree(key)
+    return @contentItem = @contentTree
+
+  newContent: (key=@name0)->
+    return @contentItem = @baseTree.newContent(key)
+  addContent: (key=@name0)->
+    return @contentItem = @baseTree.addContent(key)
 
   touch: (arg)->
     if arg is null
