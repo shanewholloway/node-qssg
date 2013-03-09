@@ -29,8 +29,6 @@ class MatchEntry
 
   isFile: -> @src.isFile()
   isDirectory: -> @src.isDirectory()
-  isWalkable: -> @src.isWalkable(arguments...)
-  walk: -> @src.walk(arguments...)
 
   constructor: (walkEntry, baseTree, pluginMap)->
     ext = walkEntry.name.split('.')
@@ -51,12 +49,16 @@ class MatchEntry
   inspect: -> "[#{@constructor.name} #{@mode}:'#{@relPath}' src:'#{@srcRelPath}']"
   toString: -> @inspect()
 
-  walkPath: -> @src.path
   walk: ->
-    if @isWalkable()
-      @node.root.walk(@, @node.target)
+    if @src.isWalkable()
+      @src.node.root.walk(@, @src.node.target)
+  isWalkable: -> @src.isWalkable(arguments...)
+  walkPath: -> @src.path
 
   newContentTree: (key=@name0)->
+    @contentTree = @baseTree.newTree(key)
+    return @contentItem = @contentTree
+  newCtxTree: (key=@name0)->
     @contentTree = @baseTree.newTree(key)
     return @contentItem = @contentTree
   addContentTree: (key=@name0)->
@@ -80,58 +82,53 @@ class MatchEntry
 
   fs: require('fs')
   readStream: (options)->
-    if @isFile
+    if @_overlaySource?
+      src = new stream.Stream()
+      process.nextTick =>
+        src.emit('data', @_overlaySource)
+        src.emit('end'); src.emit('close')
+      return src
+    else if @isFile
       @fs.createReadStream(@src.path, options)
   read: (encoding='utf-8', callback)->
     if typeof encoding is 'function'
       callback = encoding; encoding = 'utf-8'
-    if @isFile
-      return @fs.readFile(@src.path, encoding, callback)
+    if @_overlaySource?
+      process.nextTick => callback(null, @_overlaySource)
+    else if @isFile
+      @fs.readFile(@src.path, encoding, callback)
+    return
   readSync: (encoding='utf-8')->
-    if @isFile
+    if @_overlaySource?
+      return @_overlaySource
+    else if @isFile
       return @fs.readFileSync(@src.path, encoding)
-  loadModule: -> require(@src.path)
+  loadModule: ->
+    if @_overlaySource?
+      throw new Error("`MatchEntry::loadModule()` is not currently support in overlay mode")
+    require(@src.path)
 
-  OverlayMethods:
-    read: (encoding='utf-8', callback)->
-      if typeof encoding is 'function'
-        callback = encoding; encoding = 'utf-8'
-      process.nextTick => callback(null, @_source)
-      return
-    readSync: (encoding='utf-8')-> @_source
-    readStream: (options)->
-      src = new stream.Stream()
-      process.nextTick =>
-        src.emit('data', @_source)
-        src.emit('end'); ee.emit('close')
-      return ee
-
-  overlaySource: (source, overlayReady)->
+  overlaySource: (source, callback)->
     return @ if not source?
-    return @_overlayStream(source, overlayReady) if source.pipe?
+    return @_overlayStream(source, callback) if source.pipe?
 
     self = Object.create @,
       overlaysEntry:value:@
       _source:value:source
 
-    for k,v of @OverlayMethods
-      self[k] = v
-
-    process.nextTick ->
-      overlayReady(null, self, source)
+    process.nextTick -> callback(null, self, source)
     return
 
-  _overlayStream: (source, overlayReady)->
+  _overlayStream: (source, callback)->
     dataList = []
     source.on 'data', (data)-> dataList.push(data)
-    source.on 'error', (err)-> sendAnswer(err)
-    source.on 'end', -> sendAnswer()
+    source.on 'error', (err)-> sendAnswer?(err)
+    source.on 'end', -> sendAnswer?()
 
     sendAnswer = (err)=>
       sendAnswer = null
-      if not err?
-        @overlaySource(dataList.join(''), overlayReady)
-      else overlayReady(err)
+      if err? then callback(err)
+      else @overlaySource(dataList.join(''), callback)
     return
 
 exports.MatchEntry = MatchEntry
@@ -143,28 +140,28 @@ class MatchingWalker extends tromp.WalkRoot
     super(autoWalk: false)
     Object.defineProperty @, '_self_', value:@
 
-  instance: (content, pluginMap)->
+  instance: (baseTree, pluginMap)->
     Object.create @_self_,
-      content:{value:content}
+      baseTree:{value:baseTree}
       pluginMap:{value:pluginMap||@pluginMap}
 
   walkListing: (listing)->
     if (entry = listing.node.entry)?
-      if not (tree = entry.contentTree)?
+      if not (tree = entry.baseTree)?
         tree = entry.addContentTree()
       return @instance(tree, entry.pluginMap)
     return @
 
-  walkRootContent: (aPath, content, pluginMap)->
-    @instance(content, pluginMap).walk(aPath)
+  walkRootContent: (aPath, baseTree, pluginMap)->
+    @instance(baseTree, pluginMap).walk(aPath)
 
   walkNotify: (op, args...)->
     @["_op_"+op]?.apply(@, args)
   _op_dir: (entry)->
-    entry = new MatchEntry(entry, @content, @pluginMap)
+    entry = new MatchEntry(entry, @baseTree, @pluginMap)
     @ruleset.matchRules(entry, @)
   _op_file: (entry)->
-    entry = new MatchEntry(entry, @content, @pluginMap)
+    entry = new MatchEntry(entry, @baseTree, @pluginMap)
     @ruleset.matchRules(entry, @)
 
   match: (entry, matchKind)->

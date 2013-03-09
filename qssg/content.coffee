@@ -13,14 +13,11 @@ class ContentBaseNode
     dependencies: get: -> @deps
     deps: get: -> @deps=[]
 
-  isContentNode: -> true
-  init: (container, options)->
+  isContentNode: true
+  init: (container)->
     @ctx = @initCtx(container?.ctx)
-    if options?
-      @[k]=v for k,v of options
 
-  initCtx: (ctx)-> ctx || {}
-
+  initCtx: (ctx_next)-> ctx_next || {}
   visit: (visitor, keyPath)->
     throw new Error("Subclass responsibility: #{@constructor.name}::visit()")
 
@@ -35,19 +32,24 @@ class ContentBaseNode
 
 class ContentItem extends ContentBaseNode
   kind: 'item'
-  constructor: (container, @key)->
+  constructor: (container, @key, @entry)->
+    @init(container)
+
+  initCtx: (ctx_next)-> ctx_next
   visit: (visitor, keyPath=[])->
     visitor(@kind, @, keyPath.concat([@key]))
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class ContentComposite extends ContentBaseNode
   kind: 'composite'
   constructor: (container, @key)->
     @list = []
+    @init(container)
 
   addItem: (key, item)->
-    if not item.isContentNode()
+    if not item.isContentNode
       throw new Error("Can only add ContentItem objects")
 
     @list.push(item)
@@ -69,13 +71,21 @@ class ContentComposite extends ContentBaseNode
     return true
 
 
+class ContentRoot extends ContentComposite
+  kind: 'root'
+  constructor: (key)-> super(null, key)
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 class ContentTree extends ContentBaseNode
   kind: 'tree'
-  constructor: (container, @key)->
+  constructor: (container, @key, @entry)->
     @items = {}
+    @init(container)
 
   addItem: (key, item)->
-    if not item.isContentNode()
+    if not item.isContentNode
       throw new Error("Can only add ContentNode objects")
 
     if (curItem = @items[key])?
@@ -96,34 +106,48 @@ class ContentTree extends ContentBaseNode
     return true
 
 
-class ContentRoot extends ContentComposite
-  kind: 'root'
-  constructor: (key)-> super(null, key)
+class CtxTree extends ContentTree
+  kind: 'ctx_tree'
+  isCtxTree: true
+  initCtx: (ctx_parent)->
+    if not ctx_parent?
+      return {}
+
+    ctx_next = ctx_parent[@entry.name0]
+    ctx = Object.create ctx_next||null,
+      ctx_next:value:ctx_next
+    return ctx_parent[@entry.name0] = ctx
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class ContentCollectionMixin
   ContentItem: ContentItem
   ContentTree: ContentTree
+  CtxTree: CtxTree
 
-  initCtx: (ctx)-> Object.create(ctx||null)
-  newContentEx: (container, key, argsEx)->
-    item = new @.ContentItem(container, key)
-    item.init(@, argsEx...) if argsEx?
-    return item
-  newContent: (key, args...)->
-    @newContentEx(@, key, args)
-  addContent: (key, args...)->
-    @addItem key, @newContentEx(@, key, args)
+  initCtx: (ctx_next)->
+    Object.create ctx_next||null,
+      ctx_next:value:ctx_next
 
-  newTreeEx: (container, key, argsEx)->
-    item = new @.ContentTree(container, key)
-    item.init(@, argsEx...) if argsEx.length?
-    return item
-  newTree: (container, key, args...)->
-    @newTree(@, key, args)
-  addTree: (key, args...)->
-    @addItem key, @newTree(@, key, args)
+  newContentEx: (container, key, entry)->
+    new @.ContentItem(container, key, entry)
+  newContent: (key, entry)->
+    @newContentEx(@, key, entry)
+  addContent: (key, entry)->
+    @addItem key, @newContentEx(@, key, entry)
+
+  newTreeEx: (container, key, entry)->
+    new @.ContentTree(container, key, entry)
+  newTree: (key, entry)->
+    @newTreeEx(@, key, entry)
+  addTree: (key, entry)->
+    @addItem key, @newTreeEx(@, key, entry)
+
+  newCtxTreeEx: (container, key, entry)->
+    new @.CtxTree(container, key, entry)
+  newCtxTree: (key, entry)->
+    @newCtxTreeEx(@, key, entry)
 
   @mixInto = (tgtClass)->
     tgt = tgtClass.prototype || tgtClass

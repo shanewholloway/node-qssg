@@ -42,7 +42,7 @@ class BasePlugin
     else "«#{@pluginName}»"
   toString: -> @inspect()
 
-  isPlugin: -> true
+  isPlugin: true
   splitExt: splitExt
   defaultExt: -> @splitExt(@output)[0]
 
@@ -52,33 +52,41 @@ class BasePlugin
   #~ plugin protocol
 
   pluginProtocol: '
-    content variable composite compositeFile
-    subTree ctxTree
+    content variable composite compositeDir
     rename bindContent
     '.split(' ')
 
-  content: (entry, tree, vars, answerFn)->
+  content: (entry, vars, answerFn)->
     @notImplemented('content', entry, answerFn)
-  variable: (entry, tree, callback)->
-    @notImplemented('variable', entry, callback)
-  composite: (entry, tree, callback)->
+
+  simple: (entry, callback)->
+    @notImplemented('simple', entry, callback)
+  composite: (entry, callback)->
     @notImplemented('composite', entry, callback)
-  compositeFile: (entry, tree, callback)->
-    @notImplemented('compositeFile', entry, callback)
+  context: (entry, callback)->
+    @notImplemented('context', entry, callback)
+
+  simpleDir: (entry, callback)->
+    entry.walk()
+    @notImplemented('simpleDir', entry, callback)
+  compositeDir: (entry, callback)->
+    entry.walk()
+    @notImplemented('compositeDir', entry, callback)
+  contextDir: (entry, callback)->
+    entry.newCtxTree()
+    entry.walk()
+    @notImplemented('contextDir', entry, callback)
 
   if 0 # optional plugin protocol
-    adapt: (pluginMap, entry, matchKey)-> @
+    adapt: (pluginMap, entry, matchKind)-> @
 
-    bindContent: (entry, tree, callback)->
-      renderFn = (vars, answerFn)=>
-        @content(entry, tree, vars, answerFn)
-      callback(null, renderFn)
+    rename: (entry)-> entry
 
-    rename: (entry, tree)-> entry
-    subTree: (entry, subTree, tree, callback)->
-      @notImplemented('subTree', callback)
-    ctxTree: (entry, ctxTree, tree, callback)->
-      @notImplemented('ctxTree', callback)
+  bindContent: (entry, callback)->
+    contentItem = entry.contentItem || entry.addContent()
+    contentItem.renderFn = (vars, answerFn)=>
+      @content(entry, vars, answerFn)
+    callback()
 
   #~ plugin protocol utilities
 
@@ -88,23 +96,22 @@ class BasePlugin
 
 
 class BasicPlugin0 extends BasePlugin
-  composite: (entry, tree, callback)->
-    try callback null, tree.newCompositeTree(entry)
-    catch err then callback(err)
-  compositeFile: (entry, tree, callback)->
-    try tree.addContent(entry, plugin)
-    catch err then callback(err)
+  compositeDir: (entry, callback)->
+    entry.walk()
+    callback()
+  composite: (entry, callback)->
+    @bindContent(entry, callback)
 
-  renameForFormat: (entry, tree)->
+  renameForFormat: (entry)->
     ext0 = entry.ext.pop()
     if not entry.ext.length
       entry.ext.push @defaultExt()
     return entry
 
 class BasicPlugin extends BasicPlugin0
-  content: (entry, tree, vars, answerFn)->
+  content: (entry, vars, answerFn)->
     entry.read(answerFn)
-  variable: (entry, tree, callback)->
+  variable: (entry, callback)->
     entry.read(callback)
 
 exports.BasePlugin = BasePlugin
@@ -117,21 +124,21 @@ exports.BasicPlugin = BasicPlugin
 class PipelinePlugin extends BasicPlugin
   constructor: (@pluginList, ext)->
 
-  rename: (entry, tree)->
+  rename: (entry)->
     for pi in @pluginList
       if pi.rename?
-        entry = pi.rename(entry, tree)
+        entry = pi.rename(entry)
     return entry
 
-  adapt: (pluginMap, entry, matchKey)->
+  adapt: (pluginMap, entry, matchKind)->
     self = Object.create(@)
     self.pluginList = @pluginList.map (pi)=>
       if pi.adapt?
-        pi = pi.adapt(pluginMap, entry, matchKey)
+        pi = pi.adapt(pluginMap, entry, matchKind)
       return pi
     return self
 
-  content: (entry, tree, vars, answerFn)->
+  content: (entry, vars, answerFn)->
     pluginList = @pluginList.slice()
 
     renderOverlay = (err, entry_)->
@@ -139,7 +146,7 @@ class PipelinePlugin extends BasicPlugin
         return answerFn(err)
       else
         pi = pluginList.shift()
-        pi.content(entry_, tree, vars, answerNext)
+        pi.content(entry_, vars, answerNext)
       return
 
     answerNext = (err, what)->
@@ -179,10 +186,10 @@ class StaticPlugin extends BasicPlugin
       else
         console.warn "Ignoreing invalid static extension #{ext}"
 
-  content: (entry, tree, vars, callback)->
+  content: (entry, vars, callback)->
     entry.touch(false)
     callback(null, entry.readStream())
-  variable: (entry, tree, callback)->
+  variable: (entry, callback)->
     entry.read(callback)
 pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
@@ -190,13 +197,13 @@ exports.StaticPlugin = StaticPlugin
 
 class RenderedPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKey)->
+  adapt: (pluginMap, entry, matchKind)->
     return Object.create(@) # clone this instance
 
-  content: (entry, tree, vars, callback)->
-    @renderEntry(entry, tree.extendVars(vars), callback)
-  variable: (entry, tree, callback)->
-    @renderEntry(entry, tree.extendVars(), callback)
+  content: (entry, vars, callback)->
+    @renderEntry(entry.extendVars(vars), callback)
+  variable: (entry, callback)->
+    @renderEntry(entry, entry.extendVars(), callback)
 
   renderEntry: (entry, vars, callback)->
     if @renderFile?
@@ -212,7 +219,7 @@ class RenderedPlugin extends BasicPlugin
           boundRenderFn(vars, callback)
         else callback(err)
     else
-      @notImplemented('render', callback)
+      @notImplemented('render', entry, callback)
     return
 
 pluginTypes.rendered = RenderedPlugin
@@ -221,11 +228,11 @@ exports.RenderedPlugin = RenderedPlugin
 
 class CompiledPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKey)->
+  adapt: (pluginMap, entry, matchKind)->
     return Object.create(@) # clone this instance
 
-  variable: (entry, tree, callback)->
-    @compileEntry(entry, tree.extendVars(), callback)
+  variable: (entry, callback)->
+    @compileEntry(entry, entry.extendVars(), callback)
 
   compileEntry: (entry, vars, callback)->
     if @compileFile?
@@ -236,7 +243,7 @@ class CompiledPlugin extends BasicPlugin
           @compile(entry, data, vars, callback)
         else callback(err, data)
     else
-      @notImplemented('compile', callback)
+      @notImplemented('compile', entry, callback)
     return
 
 pluginTypes.compiled = CompiledPlugin
@@ -244,7 +251,7 @@ exports.CompiledPlugin = CompiledPlugin
 
 class CompileRenderPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKey)->
+  adapt: (pluginMap, entry, matchKind)->
     return Object.create(@) # clone this instance
   content: RenderedPlugin::content
   renderEntry: RenderedPlugin::renderEntry
@@ -261,8 +268,8 @@ class ModulePlugin extends BasePlugin
     err = "Module '#{entry.srcRelPath}' does not implement `#{protocolMethod}()`"
     callback(new Error(err)); return
 
-  adapt: (pluginMap, entry, matchKey)->
-    nsMod = {entry:entry, matchKey:matchKey, pluginMap:pluginMap, host:@}
+  adapt: (pluginMap, entry, matchKind)->
+    nsMod = {entry:entry, matchKind:matchKind, pluginMap:pluginMap, host:@}
     return if not @accept(entry, nsMod)
 
     nsMod.host = self = Object.create(@)

@@ -60,15 +60,16 @@ class Site
       plugins.merge(opt.plugins)
     else plugins = @plugins
 
-    #tree = @content.addTree(opt.mount)
-    tree = null
+    tree = @content.addTree(opt.mount)
     @walker.walkRootContent aPath, tree, plugins
 
   matchEntryPlugin: (plugin, entry, matchKind)->
     methKey = matchKind
     methKey +='Dir' if entry.isDirectory()
     if (method = plugin[methKey])?.bind?
-      @tasks.defer method.bind(plugin, entry)
+      @tasks.defer =>
+        method.call plugin, entry, @tasks().wrap (err)->
+          console.log "  #{err}" if err?
     else @_plugin_dnu(plugin, methKey)
 
 

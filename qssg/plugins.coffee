@@ -73,7 +73,7 @@ class PluginMap extends PluginFactory
     return @
 
   addPlugin: (extList, plugin)->
-    if not plugin.isPlugin?()
+    if not plugin.isPlugin
       throw new Error("Expecting a plugin instance")
     extList = [extList] if extList.split?
     for ext in extList
@@ -87,7 +87,7 @@ class PluginMap extends PluginFactory
       @addPluginForKeys(plugin, input, output) if input?
 
   addPluginForKeys: (plugin, input, output)->
-    if not plugin.isPlugin?()
+    if not plugin.isPlugin
       throw new Error("Expecting a plugin instance")
 
     input = splitExt(input)
