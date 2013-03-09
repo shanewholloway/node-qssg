@@ -168,8 +168,8 @@ class MatchingWalker extends tromp.WalkRoot
     @ruleset.matchRules(entry, @)
 
   match: (entry, matchKind)->
-    pi = @pluginMap.findPlugin(entry, matchKind)
-    @site.matchEntryPlugin(pi, entry, matchKind)
+    plugin = @pluginMap.findPlugin(entry, matchKind)
+    @site.matchEntryPlugin(plugin, entry, matchKind)
 
 
 exports.MatchingWalker = MatchingWalker

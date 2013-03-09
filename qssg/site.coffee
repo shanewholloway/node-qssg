@@ -64,16 +64,16 @@ class Site
     tree = null
     @walker.walkRootContent aPath, tree, plugins
 
-  matchEntryPlugin: (pi, entry, matchKind)->
+  matchEntryPlugin: (plugin, entry, matchKind)->
     methKey = matchKind
     methKey +='Dir' if entry.isDirectory()
-    if (method = pi[methKey])?.bind?
-      @tasks.defer method.bind(pi, entry)
-    else @_plugin_dnu(pi, methKey)
+    if (method = plugin[methKey])?.bind?
+      @tasks.defer method.bind(plugin, entry)
+    else @_plugin_dnu(plugin, methKey)
 
 
-  _plugin_dnu: (pi, method)->
-    console.warn "Plugin #{pi} does not implement method '#{method}'"
+  _plugin_dnu: (plugin, method)->
+    console.warn "#{plugin} does not implement method '#{method}'"
 
   build: (rootPath, vars, done)->
     if typeof vars is 'function'
