@@ -108,4 +108,6 @@ class SiteBuilder
     console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
 
 exports.SiteBuilder = SiteBuilder
+exports.createBuilder = (rootPath, content)->
+  new SiteBuilder(rootPath, content)
 

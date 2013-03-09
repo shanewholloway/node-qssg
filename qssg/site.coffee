@@ -7,50 +7,11 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
-tromp = require('tromp')
-
 qplugins = require('./plugins')
 qrules = require('./rules')
 qcontent = require('./content')
-{SiteBuilder} = require('./builder')
-{MatchEntry} = require('./entry')
-
-class MatchingWalker extends tromp.WalkRoot
-  constructor: (@ruleset, @tasks)->
-    super(autoWalk: false)
-    Object.defineProperty @, '_self_', value:@
-
-  instance: (content, pluginMap)->
-    Object.create @_self_,
-      content:{value:content}
-      pluginMap:{value:pluginMap||@pluginMap}
-
-  walkListing: (listing)->
-    if (entry = listing.node.entry)?
-      if not (tree = entry.tree)?
-        tree = entry.addContentTree()
-      return @instance(tree, entry.pluginMap)
-    return @
-
-  walkRootContent: (aPath, content, pluginMap)->
-    @instance(content, pluginMap).walk(aPath)
-
-  walkNotify: (op, args...)->
-    @["_op_"+op]?.apply(@, args)
-  _op_dir: (entry)->
-    entry = new MatchEntry(entry, @content, @pluginMap)
-    @ruleset.matchRules(entry, @)
-  _op_file: (entry)->
-    entry = new MatchEntry(entry, @content, @pluginMap)
-    @ruleset.matchRules(entry, @)
-
-  match: (entry, matchKind)->
-    pi = @pluginMap.findPlugin(entry, matchKind)
-    console.log 'match:', [matchKind, entry, pi]
-    #if entry.isDir()
-    #  fnKey = matchKind
-    #else fnKey = matchKind
-
+qentry = require('./entry')
+qbuilder = require('./builder')
 
 class Site
   Object.defineProperties @.prototype,
@@ -70,7 +31,7 @@ class Site
     ruleset = qrules.classifier()
     @initMatchRuleset(ruleset, qrules)
 
-    @walker = new MatchingWalker(ruleset, @tasks)
+    @walker = qentry.createWalker(@, ruleset)
     @walker.reject(opt.reject || /node_modules/)
     @walker.accept(opt.accept) if opt.accept?
     @walker.filter(opt.filter) if opt.filter?
@@ -101,11 +62,17 @@ class Site
     tree = null
     @walker.walkRootContent aPath, tree, plugins
 
+  matchEntryPlugin: (pi, entry, matchKind)->
+    console.log 'match:', [matchKind, entry, pi]
+    #if entry.isDir()
+    #  fnKey = matchKind
+    #else fnKey = matchKind
+
   build: (rootPath, vars, done)->
     if typeof vars is 'function'
       done = vars; vars = null
     vars = Object.create vars || null, meta:value:@meta
-    bldr = new SiteBuilder(rootPath, @content)
+    bldr = qbuilder.createBuilder(rootPath, @content)
     @done -> bldr.build(vars, done)
     return bldr
 
@@ -125,7 +92,6 @@ class Site
 
 module.exports =
   Site: Site
-  SiteBuilder: SiteBuilder
   createSite: (opt, plugins)-> new Site(opt, plugins)
   plugins: qplugins.plugins
   createPluginMap: qplugins.createPluginMap

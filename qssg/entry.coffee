@@ -8,6 +8,8 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
 stream = require('stream')
+tromp = require('tromp')
+
 
 class MatchEntry
   Object.defineProperties @.prototype,
@@ -126,4 +128,45 @@ class MatchEntry
     return
 
 exports.MatchEntry = MatchEntry
+
+
+
+class MatchingWalker extends tromp.WalkRoot
+  constructor: (@site, @ruleset)->
+    super(autoWalk: false)
+    Object.defineProperty @, '_self_', value:@
+
+  instance: (content, pluginMap)->
+    Object.create @_self_,
+      content:{value:content}
+      pluginMap:{value:pluginMap||@pluginMap}
+
+  walkListing: (listing)->
+    if (entry = listing.node.entry)?
+      if not (tree = entry.contentTree)?
+        tree = entry.addContentTree()
+      return @instance(tree, entry.pluginMap)
+    return @
+
+  walkRootContent: (aPath, content, pluginMap)->
+    @instance(content, pluginMap).walk(aPath)
+
+  walkNotify: (op, args...)->
+    @["_op_"+op]?.apply(@, args)
+  _op_dir: (entry)->
+    entry = new MatchEntry(entry, @content, @pluginMap)
+    @ruleset.matchRules(entry, @)
+  _op_file: (entry)->
+    entry = new MatchEntry(entry, @content, @pluginMap)
+    @ruleset.matchRules(entry, @)
+
+  match: (entry, matchKind)->
+    pi = @pluginMap.findPlugin(entry, matchKind)
+    @site.matchEntryPlugin(pi, entry, matchKind)
+
+
+exports.MatchingWalker = MatchingWalker
+exports.createWalker = (site, ruleset)->
+  new MatchingWalker(site, ruleset)
+
 
