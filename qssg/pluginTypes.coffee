@@ -7,8 +7,6 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
-assert = require('assert')
-
 makeRefError = (key)->
   get:-> throw new Error("Reference '#{key}' instead")
   set:-> throw new Error("Reference '#{key}' instead")
@@ -18,9 +16,9 @@ splitExt = (ext)->
   ext.shift() if not ext[0]
   ext.pop() if not ext[ext.length-1]
   return ext
-exports.splitExt = splitExt
 
-pluginTypes = {}
+exports.splitExt = splitExt
+exports.pluginTypes = pluginTypes = {}
 
 class BasePlugin
   Object.defineProperties @.prototype,
@@ -299,50 +297,4 @@ class ModulePlugin extends BasePlugin
 pluginTypes.module = ModulePlugin
 exports.ModulePlugin = ModulePlugin
 
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#~ Plugin Factory
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-class PluginFactory
-  Object.defineProperties @,
-    types: value: pluginTypes
-
-  Object.defineProperties @.prototype,
-    types: value: pluginTypes
-
-  constructor: ->
-    @types = Object.create(@types)
-
-  _initPluginOn: (pi, args)->
-    pi.init(args...)
-    pi.registerPluginOn(@)
-    return pi
-
-  asPluginPipeline: (pluginList, ext)->
-    return new PipelinePlugin(pluginList, ext)
-
-  addPluginTypeEx: (key, args)->
-    cls = @types[key]
-    if not cls
-      throw new Error("Plugin for type '#{key}' not found")
-    return @_initPluginOn(new cls, args)
-  addPluginType: (key, args)->
-    return @addPluginTypeEx(key, args)
-
-  addFileType: (obj)->
-    if obj.compile?
-      key = 'compile_render'
-    else if obj.render?
-      key = 'rendered'
-    else throw new Error("Unable to find a `compile()` or `render()` method")
-    return @addPluginTypeEx(key, arguments)
-
-  addStaticType: -> @addPluginTypeEx('static', arguments)
-  addCompiledType: -> @addPluginTypeEx('compiled', arguments)
-  addRenderedType: -> @addPluginTypeEx('rendered', arguments)
-  addModuleType: -> @addPluginTypeEx('module', arguments)
-
-exports.PluginFactory = PluginFactory
-exports.types = pluginTypes
 

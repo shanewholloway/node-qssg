@@ -72,9 +72,9 @@ class Site
           console.log "  #{err}" if err?
     else @_plugin_dnu(plugin, methKey)
 
-
   _plugin_dnu: (plugin, method)->
     console.warn "#{plugin} does not implement method '#{method}'"
+
 
   build: (rootPath, vars, done)->
     if typeof vars is 'function'

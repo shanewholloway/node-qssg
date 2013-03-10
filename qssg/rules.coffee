@@ -99,15 +99,12 @@ qrules =
   thenMatchKey: (kind)->
     return (entry, mx)-> mx.match(entry, kind); return true
 
-  testDirOrExt: (entry)->
-    entry.isDirectory() or entry.ext
-
   contextRuleset: (ruleset, opt={})->
     ruleset.rule(
       qrules.any(
         qrules.classify(/-(\w)-([^-].+)/, 'kind0 name0'),
         qrules.classify(/-([^-].+)-(\w)-?/, 'name0 kind0'),
-        qrules.classify(/-([^-].+)/, 'name0', qrules.testDirOrExt)),
+        qrules.classify(/-([^-].+)/, 'name0')),
       qrules.thenMatchKey(opt.kind || 'context'))
     return ruleset
 
@@ -115,7 +112,7 @@ qrules =
     ruleset.rule(
       qrules.any(
         qrules.classify(/([^-].+)-(\w)-?/, 'name0 kind0'),
-        qrules.classify(/([^-].+)-/, 'name0', qrules.testDirOrExt)),
+        qrules.classify(/([^-].+)-/, 'name0')),
       qrules.thenMatchKey(opt.kind || 'composite'))
     return ruleset
 

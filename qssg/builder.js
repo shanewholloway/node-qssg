@@ -156,3 +156,7 @@ SiteBuilder = (function() {
 })();
 
 exports.SiteBuilder = SiteBuilder;
+
+exports.createBuilder = function(rootPath, content) {
+  return new SiteBuilder(rootPath, content);
+};
