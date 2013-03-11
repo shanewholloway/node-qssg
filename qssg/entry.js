@@ -51,6 +51,22 @@ MatchEntry = (function() {
         return this.src.node.rootPath;
       }
     },
+    parentEntry: {
+      get: function() {
+        return this.src.node.entry;
+      }
+    },
+    ctx: {
+      get: function() {
+        return this.contentItem.ctx;
+      }
+    },
+    ctx_w: {
+      get: function() {
+        var _ref;
+        return ((_ref = this.contentTree) != null ? _ref.ctx : void 0) || this.baseTree.ctx;
+      }
+    },
     name: {
       get: function() {
         var ext;
@@ -98,6 +114,17 @@ MatchEntry = (function() {
     this.ext = ext.slice();
   }
 
+  MatchEntry.prototype.setMatchMethod = function(matchKind) {
+    if (this.baseTree.adaptMatchKind != null) {
+      matchKind = this.baseTree.adaptMatchKind(matchKind, entry);
+    }
+    if (this.isDirectory()) {
+      return this.matchMethod = matchKind + 'Dir';
+    } else {
+      return this.matchMethod = matchKind;
+    }
+  };
+
   MatchEntry.prototype.toJSON = function() {
     return {
       path: this.relPath,
@@ -129,6 +156,14 @@ MatchEntry = (function() {
 
   MatchEntry.prototype.walkPath = function() {
     return this.src.path;
+  };
+
+  MatchEntry.prototype.extendVars = function(vars) {
+    if (vars == null) {
+      vars = {};
+    }
+    vars.ctx = this.ctx;
+    return vars;
   };
 
   MatchEntry.prototype.newContentTree = function(key) {
@@ -343,9 +378,10 @@ MatchingWalker = (function(_super) {
   };
 
   MatchingWalker.prototype.match = function(entry, matchKind) {
-    var plugin;
-    plugin = this.pluginMap.findPlugin(entry, matchKind);
-    return this.site.matchEntryPlugin(plugin, entry, matchKind);
+    var matchMethod, plugin;
+    matchMethod = entry.setMatchMethod(matchKind);
+    plugin = this.pluginMap.findPlugin(entry);
+    return this.site.matchEntryPlugin(plugin, entry, matchMethod);
   };
 
   return MatchingWalker;

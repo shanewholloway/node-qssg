@@ -118,6 +118,7 @@ class CtxTree extends ContentTree
       ctx_next:value:ctx_next
     return ctx_parent[@entry.name0] = ctx
 
+  adaptMatchKind: (matchKind, entry)-> 'context'
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

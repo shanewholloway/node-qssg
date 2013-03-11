@@ -22,6 +22,10 @@ class MatchEntry
     path: get: -> @src.node.resolve(@name)
     relPath: get: -> @src.node.relative @path
     rootPath: get: -> @src.node.rootPath
+    parentEntry: get: -> @src.node.entry
+
+    ctx: get: -> @contentItem.ctx
+    ctx_w: get: -> @contentTree?.ctx || @baseTree.ctx
 
     name: get:->
       ext = @ext.join('.')
@@ -45,6 +49,13 @@ class MatchEntry
     @name0 = name0
     @ext = ext.slice()
 
+  setMatchMethod: (matchKind)->
+    if @baseTree.adaptMatchKind?
+      matchKind = @baseTree.adaptMatchKind(matchKind, entry)
+    if @isDirectory()
+      return @matchMethod = matchKind + 'Dir'
+    else return @matchMethod = matchKind
+
   toJSON: -> {path:@relPath, src:{path:@relPath, mode:@mode}}
   inspect: -> "[#{@constructor.name} #{@mode}:'#{@relPath}' src:'#{@srcRelPath}']"
   toString: -> @inspect()
@@ -54,6 +65,12 @@ class MatchEntry
       @src.node.root.walk(@, @src.node.target)
   isWalkable: -> @src.isWalkable(arguments...)
   walkPath: -> @src.path
+
+  extendVars: (vars={})->
+    vars.ctx = @ctx
+    return vars
+
+  #~ content/output related
 
   newContentTree: (key=@name0)->
     @contentTree = @baseTree.newTree(key)
@@ -77,6 +94,7 @@ class MatchEntry
       arg = new Date() if arg is true
       @mtime = new Date(Math.max(@mtime||0, arg||0, @stat.mtime))
     return @mtime
+
 
   #~ accessing content of entry
 
@@ -165,8 +183,9 @@ class MatchingWalker extends tromp.WalkRoot
     @ruleset.matchRules(entry, @)
 
   match: (entry, matchKind)->
-    plugin = @pluginMap.findPlugin(entry, matchKind)
-    @site.matchEntryPlugin(plugin, entry, matchKind)
+    matchMethod = entry.setMatchMethod(matchKind)
+    plugin = @pluginMap.findPlugin(entry)
+    @site.matchEntryPlugin(plugin, entry, matchMethod)
 
 
 exports.MatchingWalker = MatchingWalker

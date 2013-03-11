@@ -20,19 +20,7 @@ class PluginMap extends qpluginMap.PluginCompositeMap
 
   constructor:->
     @_initPluginMaps()
-    @default = @addStaticType()
-
-  findPlugin: (entry, matchKind)->
-    map = if entry.isDirectory() then @dirsMap else @filesMap
-
-    pi = map.findPluginForExt(entry, matchKind)
-    pi_kind = map.findPluginForKind(entry.kind0, entry, matchKind)
-    if pi_kind?
-      pi = pi_kind.composePlugin(pi, entry, matchKind)
-
-    if (pi or= @default).adapt?
-      pi = pi.adapt(@, entry, matchKind)
-    return pi
+    @addDefaultPlugins()
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -65,14 +53,19 @@ class PluginMap extends qpluginMap.PluginCompositeMap
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  addPluginTypeEx: (key, args)->
+  newPluginTypeEx: (key, args)->
     cls = @pluginTypes[key]
     if not cls
       throw new Error("Plugin for type '#{key}' not found")
 
-    pi = new cls
+    pi = new cls()
     pi.init(args...)
-    @add(pi)
+    return pi
+  newPluginType: (key, args...)->
+    return @newPluginTypeEx(key, args)
+
+  addPluginTypeEx: (key, args)->
+    @add pi=@newPluginTypeEx(key, args)
     return pi
   addPluginType: (key, args...)->
     return @addPluginTypeEx(key, args)
@@ -88,6 +81,10 @@ class PluginMap extends qpluginMap.PluginCompositeMap
   addCompiledType: -> @addPluginTypeEx('compiled', arguments)
   addRenderedType: -> @addPluginTypeEx('rendered', arguments)
   addModuleType: -> @addPluginTypeEx('module', arguments)
+
+  addDefaultPlugins: ->
+    @addPluginAt [''], @newPluginTypeEx('static')
+    @addPluginAt ['&'], @newPluginTypeEx('composed')
 
 exports.createPluginMap = -> new PluginMap()
 exports.plugins = exports.createPluginMap()

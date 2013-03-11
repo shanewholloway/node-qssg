@@ -87,14 +87,10 @@ Site = (function() {
     return this.walker.walkRootContent(aPath, tree, plugins);
   };
 
-  Site.prototype.matchEntryPlugin = function(plugin, entry, matchKind) {
-    var methKey, method, _ref,
+  Site.prototype.matchEntryPlugin = function(plugin, entry, matchMethod) {
+    var method, _ref,
       _this = this;
-    methKey = matchKind;
-    if (entry.isDirectory()) {
-      methKey += 'Dir';
-    }
-    if (((_ref = (method = plugin[methKey])) != null ? _ref.bind : void 0) != null) {
+    if (((_ref = (method = plugin[matchMethod])) != null ? _ref.call : void 0) != null) {
       return this.tasks.defer(function() {
         return method.call(plugin, entry, _this.tasks().wrap(function(err) {
           if (err != null) {
@@ -103,12 +99,12 @@ Site = (function() {
         }));
       });
     } else {
-      return this._plugin_dnu(plugin, methKey);
+      return this._plugin_dnu(plugin, matchMethod);
     }
   };
 
-  Site.prototype._plugin_dnu = function(plugin, method) {
-    return console.warn("" + plugin + " does not implement method '" + method + "'");
+  Site.prototype._plugin_dnu = function(plugin, matchMethod) {
+    return console.warn("" + plugin + " does not implement method '" + matchMethod + "'");
   };
 
   Site.prototype.build = function(rootPath, vars, done) {

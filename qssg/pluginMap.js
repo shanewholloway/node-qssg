@@ -18,6 +18,14 @@ PluginBaseMap = (function() {
     });
   }
 
+  PluginBaseMap.prototype.inspect = function() {
+    return "«" + this.constructor.name + "»";
+  };
+
+  PluginBaseMap.prototype.toString = function() {
+    return this.inspect();
+  };
+
   PluginBaseMap.prototype.invalidate = function() {
     this._cache = {};
     return this;
@@ -48,18 +56,11 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.exportPluginsTo = function(tgt, deep) {
-    var key, pi, _ref, _ref1;
-    if (deep) {
-      _ref = this.db;
-      for (key in _ref) {
-        pi = _ref[key];
-        tgt[key] = pi;
-      }
-    } else {
-      _ref1 = this.db;
-      for (key in _ref1) {
-        if (!__hasProp.call(_ref1, key)) continue;
-        pi = _ref1[key];
+    var db, key, pi;
+    db = this.db;
+    for (key in db) {
+      pi = db[key];
+      if (deep || Object.hasOwnProperty(db, key)) {
         tgt[key] = pi;
       }
     }
@@ -84,20 +85,13 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.addPluginHash = function(hash, deep) {
-    var key, pi;
-    if (deep) {
-      for (key in hash) {
-        pi = hash[key];
-        if (this.acceptPlugin(pi)) {
-          this.db[key] = pi;
-        }
-      }
-    } else {
-      for (key in hash) {
-        if (!__hasProp.call(hash, key)) continue;
-        pi = hash[key];
-        if (this.acceptPlugin(pi)) {
-          this.db[key] = pi;
+    var k, pi;
+    for (k in hash) {
+      pi = hash[k];
+      if (deep || Object.hasOwnProperty(hash, k)) {
+        if (this.acceptPlugin(k, pi)) {
+          this.db[k] = pi;
+          console.log("" + this + " add: '" + k + "' pi: " + pi);
         }
       }
     }
@@ -106,20 +100,20 @@ PluginBaseMap = (function() {
 
   PluginBaseMap.prototype.addPluginAt = function(keys, pi) {
     var k, _i, _len;
-    if (this.acceptPlugin(pi)) {
-      if (keys.split != null) {
-        keys = [keys];
-      }
-      for (_i = 0, _len = keys.length; _i < _len; _i++) {
-        k = keys[_i];
-        this.db[k] = pi;
-      }
-      return this.invalidate();
+    if (keys.split != null) {
+      keys = [keys];
     }
-    return this;
+    for (_i = 0, _len = keys.length; _i < _len; _i++) {
+      k = keys[_i];
+      if (this.acceptPlugin(k, pi)) {
+        this.db[k] = pi;
+        console.log("" + this + " add: '" + k + "' pi: " + pi);
+      }
+    }
+    return this.invalidate();
   };
 
-  PluginBaseMap.prototype.acceptPlugin = function(pi) {
+  PluginBaseMap.prototype.acceptPlugin = function(key, pi) {
     throw new Error("Subclass responsibility. (" + this.constructor.name + ")");
   };
 
@@ -135,6 +129,10 @@ PluginBaseMap = (function() {
     throw new Error("Subclass responsibility. (" + this.constructor.name + ")");
   };
 
+  PluginBaseMap.prototype["default"] = function() {
+    return this.db[''];
+  };
+
   PluginBaseMap.prototype.findPluginForKind = function(kind0, entry) {
     var pi_kind;
     if (kind0 != null) {
@@ -142,8 +140,19 @@ PluginBaseMap = (function() {
       if ((pi_kind == null) && kind0.match(/\D/)) {
         console.warn("Plugin for kind '" + entry.kind0 + "' not found. (re: " + entry.srcRelPath + ")");
       }
+      if (pi_kind != null) {
+        return pi_kind;
+      }
     }
-    return pi_kind || this.db['&'];
+    return this.db['&'];
+  };
+
+  PluginBaseMap.prototype.findPlugin = function(entry) {
+    var pi_ext, pi_kind;
+    pi_ext = this.findPluginForExt(entry.ext, entry);
+    pi_ext = pi_ext.adapt(entry);
+    pi_kind = this.findPluginForKind(entry.kind0, entry);
+    return pi_kind.composePlugin(pi_ext, entry);
   };
 
   return PluginBaseMap;
@@ -158,8 +167,12 @@ PluginFilesMap = (function(_super) {
     return PluginFilesMap.__super__.constructor.apply(this, arguments);
   }
 
-  PluginFilesMap.prototype.acceptPlugin = function(pi) {
-    return pi.isFilePlugin;
+  PluginFilesMap.prototype.acceptPlugin = function(key, pi) {
+    if (key[0] === '&') {
+      return pi.isFileKindPlugin;
+    } else {
+      return pi.isFilePlugin;
+    }
   };
 
   PluginFilesMap.prototype._findPluginForExt = function(ext, entry) {
@@ -189,7 +202,10 @@ PluginFilesMap = (function(_super) {
         pi = pi_list.pop();
       }
     }
-    return pi || this["default"];
+    if (pi != null) {
+      return pi;
+    }
+    return this["default"]();
   };
 
   PluginFilesMap.prototype._lookupPair = function(fmt, ext) {
@@ -212,8 +228,12 @@ PluginDirsMap = (function(_super) {
     return PluginDirsMap.__super__.constructor.apply(this, arguments);
   }
 
-  PluginDirsMap.prototype.acceptPlugin = function(pi) {
-    return pi.isDirPlugin;
+  PluginDirsMap.prototype.acceptPlugin = function(key, pi) {
+    if (key[0] === '&') {
+      return pi.isDirKindPlugin;
+    } else {
+      return pi.isDirPlugin;
+    }
   };
 
   PluginDirsMap.prototype._findPluginForExt = function(ext, entry) {
@@ -223,7 +243,7 @@ PluginDirsMap = (function(_super) {
     if (ext.length > 1) {
       console.warn("Multiple extensions on directories are undefined. (re: " + entry.srcRelPath + ")");
     }
-    return this.db[ext[0]];
+    return this.db[ext[0]] || this["default"]();
   };
 
   return PluginDirsMap;
@@ -231,12 +251,21 @@ PluginDirsMap = (function(_super) {
 })(PluginBaseMap);
 
 PluginCompositeMap = (function() {
+  var findPlugin;
 
   function PluginCompositeMap() {}
 
   PluginCompositeMap.prototype.PluginDirsMap = PluginDirsMap;
 
   PluginCompositeMap.prototype.PluginFilesMap = PluginFilesMap;
+
+  PluginCompositeMap.prototype.inspect = function() {
+    return "«" + this.constructor.name + "»";
+  };
+
+  PluginCompositeMap.prototype.toString = function() {
+    return this.inspect();
+  };
 
   PluginCompositeMap.prototype._initPluginMaps = function() {
     this.dirsMap = new this.PluginDirsMap();
@@ -294,21 +323,17 @@ PluginCompositeMap = (function() {
     return this;
   };
 
-  PluginCompositeMap.prototype.findPluginForExt = function(ext, entry, matchKind) {
+  findPlugin = function(entry) {
     if (entry.isDirectory()) {
-      return this.dirsMap.findPluginForExt(kind0, entry, matchKind);
+      return this.dirsMap.findPlugin(entry);
     } else {
-      return this.filesMap.findPluginForExt(kind0, entry, matchKind);
+      return this.filesMap.findPlugin(entry);
     }
   };
 
-  PluginCompositeMap.prototype.findPluginForKind = function(kind0, entry, matchKind) {
-    if (entry.isDirectory()) {
-      return this.dirsMap.findPluginForKind(kind0, entry, matchKind);
-    } else {
-      return this.filesMap.findPluginForKind(kind0, entry, matchKind);
-    }
-  };
+  PluginCompositeMap.prototype._findPlugin = findPlugin;
+
+  PluginCompositeMap.prototype.findPlugin = findPlugin;
 
   return PluginCompositeMap;
 

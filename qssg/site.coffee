@@ -63,17 +63,15 @@ class Site
     tree = @content.addTree(opt.mount)
     @walker.walkRootContent aPath, tree, plugins
 
-  matchEntryPlugin: (plugin, entry, matchKind)->
-    methKey = matchKind
-    methKey +='Dir' if entry.isDirectory()
-    if (method = plugin[methKey])?.bind?
+  matchEntryPlugin: (plugin, entry, matchMethod)->
+    if (method = plugin[matchMethod])?.call?
       @tasks.defer =>
         method.call plugin, entry, @tasks().wrap (err)->
           console.log "  #{err}" if err?
-    else @_plugin_dnu(plugin, methKey)
+    else @_plugin_dnu(plugin, matchMethod)
 
-  _plugin_dnu: (plugin, method)->
-    console.warn "#{plugin} does not implement method '#{method}'"
+  _plugin_dnu: (plugin, matchMethod)->
+    console.warn "#{plugin} does not implement method '#{matchMethod}'"
 
 
   build: (rootPath, vars, done)->

@@ -7,113 +7,135 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
-makeRefError = (key)->
-  get:-> throw new Error("Reference '#{key}' instead")
-  set:-> throw new Error("Reference '#{key}' instead")
+qpluginKinds = require('./pluginKinds')
+module.exports = exports = Object.create(qpluginKinds)
 
-splitExt = (ext)->
+exports.pluginTypes = pluginTypes = Object.create(exports.pluginTypes || null)
+
+exports.splitExt = splitExt = (ext)->
   ext = ext.split(/[. ;,]+/) if ext.split?
   ext.shift() if not ext[0]
   ext.pop() if not ext[ext.length-1]
   return ext
 
-exports.splitExt = splitExt
-exports.pluginTypes = pluginTypes = {}
 
-class BasePlugin
+makeRefError = (key)->
+  get:-> throw new Error("Reference '#{key}' instead")
+  set:-> throw new Error("Reference '#{key}' instead")
+
+class CommonPluginBase
   Object.defineProperties @.prototype,
-    pluginName: get:-> @.constructor.name
+    pluginName: get:-> @name || @.constructor.name
     inputs: makeRefError('input')
     outputs: makeRefError('output')
 
-  init: (opt)->
+  registerPluginOn: (pluginMap)->
+    throw new Error("Subclass responsibility (#{@constructor.name})")
+
+  init: (opt)-> @initOptions(opt) if opt?
+  initOptions: (opt)->
     if opt?
       for own k,v of opt
         @[k] = v
     return @
 
+  isPlugin: true
   inspect: ->
-    if @name?
-      "«#{@name} plugin»"
-    else if @input?
+    if @input?
       "«#{@pluginName} '#{@input}'»"
     else "«#{@pluginName}»"
   toString: -> @inspect()
 
-  isPlugin: true
   splitExt: splitExt
-  defaultExt: -> @splitExt(@output)[0]
-
-  registerPluginOn: (pluginMap)->
-    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
-
-  #~ plugin protocol
-
-  pluginProtocol: '
-    content variable composite compositeDir
-    rename bindContent
-    '.split(' ')
-
-  content: (entry, vars, answerFn)->
-    @notImplemented('content', entry, answerFn)
-
-  simple: (entry, callback)->
-    @notImplemented('simple', entry, callback)
-  composite: (entry, callback)->
-    @notImplemented('composite', entry, callback)
-  context: (entry, callback)->
-    @notImplemented('context', entry, callback)
-
-  simpleDir: (entry, callback)->
-    entry.walk()
-    @notImplemented('simpleDir', entry, callback)
-  compositeDir: (entry, callback)->
-    entry.walk()
-    @notImplemented('compositeDir', entry, callback)
-  contextDir: (entry, callback)->
-    entry.newCtxTree()
-    entry.walk()
-    @notImplemented('contextDir', entry, callback)
-
-  if 0 # optional plugin protocol
-    adapt: (pluginMap, entry, matchKind)-> @
-
-    rename: (entry)-> entry
-
-  bindContent: (entry, callback)->
-    contentItem = entry.contentItem || entry.addContent()
-    contentItem.renderFn = (vars, answerFn)=>
-      @content(entry, vars, answerFn)
-    callback()
-
-  #~ plugin protocol utilities
 
   notImplemented: (protocolMethod, entry, callback)->
     err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{entry.srcRelPath}'}"
     callback(new Error(err)); return
 
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class BasicPlugin0 extends BasePlugin
-  compositeDir: (entry, callback)->
+  pluginProtocol: ['adapt','rename', 'bindRender', 'bindContext', 'render', 'context']
+
+  adapt: (entry)-> @
+  rename: (entry)-> entry
+
+  bindRender: (entry, callback)->
+    @rename(entry)
+    citem = entry.addContent()
+    citem.renderFn = @render.bind(entry)
+    callback(null, citem)
+  render: (entry, vars, answerFn)->
+    @notImplemented('render', entry, answerFn)
+
+  bindContext: (entry, callback)->
+    @context entry, (err, value)->
+      if not (value is undefined)
+        entry.ctx_w[entry.name0] = value
+      callback(err, value)
+  context: (entry, callback)->
+    @notImplemented('context', entry, callback)
+
+
+class DirPluginBase extends CommonPluginBase
+  isDirPlugin: true
+
+  pluginProtocol:
+    CommonPluginBase::pluginProtocol.concat [
+      'contentDir', 'bindContextDir']
+
+  contentDir: (entry, callback)->
+    if entry.ext.length is 0
+      ctree = entry.addContentTree()
+      callback(null, ctree)
+    else
+      ctree = entry.newContentTree()
+      @bindRender(entry, callback)
     entry.walk()
-    callback()
-  composite: (entry, callback)->
-    @bindContent(entry, callback)
 
+  bindContextDir: (entry, callback)->
+    if entry.ext.length>0
+      console.warn 'Context directories with extensions are not defined'
+    ctree = entry.newCtxTree()
+    entry.walk()
+    callback(null, ctree)
+
+  render: (entry, vars, answerFn)->
+    di = entry.contentTree?.items[entry.name]
+    if not di? or not di.renderFn?
+      answerFn("Entry '#{entry.name}' not defined for composite")
+    else
+      di.renderFn(arguments...)
+
+
+class FilePluginBase extends CommonPluginBase
+  isFilePlugin: true
+
+class CombinedPluginBase extends DirPluginBase
+  isFilePlugin: true
+
+exports.CommonPluginBase = CommonPluginBase
+exports.DirPluginBase = DirPluginBase
+exports.FilePluginBase = FilePluginBase
+exports.CombinedPluginBase = CombinedPluginBase
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class BasicPlugin extends FilePluginBase
+  defaultExt: -> @splitExt(@output)[0]
   renameForFormat: (entry)->
     ext0 = entry.ext.pop()
     if not entry.ext.length
       entry.ext.push @defaultExt()
     return entry
 
-class BasicPlugin extends BasicPlugin0
-  content: (entry, vars, answerFn)->
+  registerPluginOn: (pluginMap)->
+    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
+
+  render: (entry, vars, answerFn)->
     entry.read(answerFn)
-  variable: (entry, callback)->
+  context: (entry, callback)->
     entry.read(callback)
 
-exports.BasePlugin = BasePlugin
-exports.BasicPlugin0 = BasicPlugin0
 exports.BasicPlugin = BasicPlugin
 
 
@@ -124,19 +146,15 @@ class PipelinePlugin extends BasicPlugin
 
   rename: (entry)->
     for pi in @pluginList
-      if pi.rename?
-        entry = pi.rename(entry)
+      entry = pi.rename(entry)
     return entry
 
-  adapt: (pluginMap, entry, matchKind)->
+  adapt: (entry)->
     self = Object.create(@)
-    self.pluginList = @pluginList.map (pi)=>
-      if pi.adapt?
-        pi = pi.adapt(pluginMap, entry, matchKind)
-      return pi
+    self.pluginList = @pluginList.map (pi)-> pi.adapt(entry)
     return self
 
-  content: (entry, vars, answerFn)->
+  render: (entry, vars, answerFn)->
     pluginList = @pluginList.slice()
 
     renderOverlay = (err, entry_)->
@@ -144,7 +162,7 @@ class PipelinePlugin extends BasicPlugin
         return answerFn(err)
       else
         pi = pluginList.shift()
-        pi.content(entry_, vars, answerNext)
+        pi.render(entry_, vars, answerNext)
       return
 
     answerNext = (err, what)->
@@ -162,15 +180,13 @@ exports.PipelinePlugin = PipelinePlugin
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-class StaticPlugin extends BasicPlugin
+class StaticPlugin extends CombinedPluginBase
   init: (options...)->
     @extList = []
     for opt in options
       if opt.length?
         @extList.push splitExt(opt)
-      else
-        for own k,v of opt
-          @[k] = v
+      else @initOptions(opt)
     return @
 
   registerPluginOn: (pluginMap)->
@@ -184,10 +200,10 @@ class StaticPlugin extends BasicPlugin
       else
         console.warn "Ignoreing invalid static extension #{ext}"
 
-  content: (entry, vars, callback)->
+  render: (entry, vars, callback)->
     entry.touch(false)
     callback(null, entry.readStream())
-  variable: (entry, callback)->
+  context: (entry, callback)->
     entry.read(callback)
 pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
@@ -195,13 +211,10 @@ exports.StaticPlugin = StaticPlugin
 
 class RenderedPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKind)->
-    return Object.create(@) # clone this instance
-
-  content: (entry, vars, callback)->
+  render: (entry, vars, callback)->
     @renderEntry(entry.extendVars(vars), callback)
-  variable: (entry, callback)->
-    @renderEntry(entry, entry.extendVars(), callback)
+  context: (entry, callback)->
+    @render(entry, {}, callback)
 
   renderEntry: (entry, vars, callback)->
     if @renderFile?
@@ -226,10 +239,7 @@ exports.RenderedPlugin = RenderedPlugin
 
 class CompiledPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKind)->
-    return Object.create(@) # clone this instance
-
-  variable: (entry, callback)->
+  context: (entry, callback)->
     @compileEntry(entry, entry.extendVars(), callback)
 
   compileEntry: (entry, vars, callback)->
@@ -249,25 +259,20 @@ exports.CompiledPlugin = CompiledPlugin
 
 class CompileRenderPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  adapt: (pluginMap, entry, matchKind)->
-    return Object.create(@) # clone this instance
-  content: RenderedPlugin::content
+  render: RenderedPlugin::render
   renderEntry: RenderedPlugin::renderEntry
-  variable: CompiledPlugin::variable
+  context: CompiledPlugin::context
   compileEntry: CompiledPlugin::compileEntry
 
 pluginTypes.compile_render = CompileRenderPlugin
 exports.CompileRenderPlugin = CompileRenderPlugin
 
 
-class ModulePlugin extends BasePlugin
+class ModulePlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  notImplemented: (protocolMethod, entry, callback)->
-    err = "Module '#{entry.srcRelPath}' does not implement `#{protocolMethod}()`"
-    callback(new Error(err)); return
 
-  adapt: (pluginMap, entry, matchKind)->
-    nsMod = {entry:entry, matchKind:matchKind, pluginMap:pluginMap, host:@}
+  adapt: (entry)->
+    nsMod = {entry:entry, host:@}
     return if not @accept(entry, nsMod)
 
     nsMod.host = self = Object.create(@)
@@ -276,7 +281,9 @@ class ModulePlugin extends BasePlugin
 
     for meth in @pluginProtocol
       self[meth] = mod[meth] if mod[meth]?
-    return self
+    if mod.adapt?
+      return mod.adapt.call(self, entry)
+    else return self
 
   accept: (entry, nsMod)->
     not entry.ext.some (e)-> e.match(/\d/)
@@ -293,6 +300,15 @@ class ModulePlugin extends BasePlugin
       return @result(mod, nsMod)
     catch err
       return @error(err, nsMod)
+
+  render: (entry, vars, answerFn)->
+    @notImplemented('render', entry, answerFn)
+  context: (entry, callback)->
+    @notImplemented('context', entry, callback)
+
+  notImplemented: (protocolMethod, entry, callback)->
+    err = "Module '#{entry.srcRelPath}' does not implement `#{protocolMethod}()`"
+    callback(new Error(err)); return
 
 pluginTypes.module = ModulePlugin
 exports.ModulePlugin = ModulePlugin

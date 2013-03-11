@@ -15,6 +15,9 @@ class PluginBaseMap
       db: value:{}
       _cache: value:{}
 
+  inspect: -> "«#{@constructor.name}»"
+  toString: -> @inspect()
+
   invalidate: ->
     @_cache = {} #Object.create(@db)
     return @
@@ -28,10 +31,10 @@ class PluginBaseMap
     return @reset().merge(hash)
 
   exportPluginsTo: (tgt, deep)->
-    if deep
-      tgt[key] = pi for key, pi of @db
-    else
-      tgt[key] = pi for own key, pi of @db
+    db = @db
+    for key, pi of db
+      if deep or Object.hasOwnProperty(db, key)
+        tgt[key] = pi
     return tgt
   merge: (plugins)->
     if plugins is true
@@ -46,22 +49,21 @@ class PluginBaseMap
     return @invalidate()
 
   addPluginHash: (hash, deep)->
-    if deep
-      for key,pi of hash
-        @db[key] = pi if @acceptPlugin(pi)
-    else
-      for own key,pi of hash
-        @db[key] = pi if @acceptPlugin(pi)
+    for k,pi of hash
+      if deep or Object.hasOwnProperty(hash, k)
+        if @acceptPlugin(k, pi)
+          @db[k] = pi
+          console.log "#{@} add: '#{k}' pi: #{pi}"
     return @invalidate()
   addPluginAt: (keys, pi)->
-    if @acceptPlugin(pi)
-      keys = [keys] if keys.split?
-      for k in keys
+    keys = [keys] if keys.split?
+    for k in keys
+      if @acceptPlugin(k, pi)
         @db[k] = pi
-      return @invalidate()
-    return @
+        console.log "#{@} add: '#{k}' pi: #{pi}"
+    return @invalidate()
 
-  acceptPlugin: (pi)->
+  acceptPlugin: (key, pi)->
     throw new Error("Subclass responsibility. (#{@constructor.name})")
 
   findPluginForExt: (ext, entry)->
@@ -70,18 +72,29 @@ class PluginBaseMap
     return pi
   _findPluginForExt: (ext, entry)->
     throw new Error("Subclass responsibility. (#{@constructor.name})")
+  default: -> @db['']
 
   findPluginForKind: (kind0, entry)->
     if kind0?
       pi_kind = @db['&'+kind0]
       if not pi_kind? and kind0.match(/\D/)
         console.warn "Plugin for kind '#{entry.kind0}' not found. (re: #{entry.srcRelPath})"
-    return pi_kind || @db['&']
+      return pi_kind if pi_kind?
+    return @db['&']
+
+  findPlugin: (entry)->
+    pi_ext = @findPluginForExt(entry.ext, entry)
+    pi_ext = pi_ext.adapt(entry)
+    pi_kind = @findPluginForKind(entry.kind0, entry)
+    return pi_kind.composePlugin(pi_ext, entry)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class PluginFilesMap extends PluginBaseMap
-  acceptPlugin: (pi)-> pi.isFilePlugin
+  acceptPlugin: (key, pi)->
+    if key[0] is '&'
+      return pi.isFileKindPlugin
+    else return pi.isFilePlugin
 
   _findPluginForExt: (ext, entry)->
     n = ext.length
@@ -100,7 +113,8 @@ class PluginFilesMap extends PluginBaseMap
         pi = @asPluginPipeline(pi_list, ext)
       else pi = pi_list.pop()
 
-    return pi or @default
+    return pi if pi?
+    return @default()
   _lookupPair: (fmt,ext)-> return (
       @db[[fmt,ext]] || # direct match '.fmt.ext'
       @db[[fmt,'*']] || # or middle match: '.fmt.*'
@@ -112,20 +126,26 @@ class PluginFilesMap extends PluginBaseMap
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class PluginDirsMap extends PluginBaseMap
-  acceptPlugin: (pi)-> pi.isDirPlugin
+  acceptPlugin: (key, pi)->
+    if key[0] is '&'
+      return pi.isDirKindPlugin
+    else return pi.isDirPlugin
 
   _findPluginForExt: (ext, entry)->
     if ext.length is 0
       return @db['']
     if ext.length > 1
       console.warn "Multiple extensions on directories are undefined. (re: #{entry.srcRelPath})"
-    return @db[ext[0]]
+    return @db[ext[0]] or @default()
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class PluginCompositeMap
   PluginDirsMap: PluginDirsMap
   PluginFilesMap: PluginFilesMap
+
+  inspect: -> "«#{@constructor.name}»"
+  toString: -> @inspect()
 
   _initPluginMaps: ->
     @dirsMap = new @.PluginDirsMap()
@@ -166,15 +186,12 @@ class PluginCompositeMap
     @filesMap.addPluginAt(keys, pi)
     return @
 
-  findPluginForExt: (ext, entry, matchKind)->
+  findPlugin = (entry)->
     if entry.isDirectory()
-      return @dirsMap.findPluginForExt(kind0, entry, matchKind)
-    else return @filesMap.findPluginForExt(kind0, entry, matchKind)
-
-  findPluginForKind: (kind0, entry, matchKind)->
-    if entry.isDirectory()
-      return @dirsMap.findPluginForKind(kind0, entry, matchKind)
-    else return @filesMap.findPluginForKind(kind0, entry, matchKind)
+      return @dirsMap.findPlugin(entry)
+    else return @filesMap.findPlugin(entry)
+  _findPlugin:findPlugin
+  findPlugin:findPlugin
 
 
 module.exports = exports =

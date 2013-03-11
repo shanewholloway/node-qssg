@@ -228,6 +228,10 @@ CtxTree = (function(_super) {
     return ctx_parent[this.entry.name0] = ctx;
   };
 
+  CtxTree.prototype.adaptMatchKind = function(matchKind, entry) {
+    return 'context';
+  };
+
   return CtxTree;
 
 })(ContentTree);

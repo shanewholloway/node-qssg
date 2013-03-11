@@ -24,22 +24,8 @@ PluginMap = (function(_super) {
 
   function PluginMap() {
     this._initPluginMaps();
-    this["default"] = this.addStaticType();
+    this.addDefaultPlugins();
   }
-
-  PluginMap.prototype.findPlugin = function(entry, matchKind) {
-    var map, pi, pi_kind;
-    map = entry.isDirectory() ? this.dirsMap : this.filesMap;
-    pi = map.findPluginForExt(entry, matchKind);
-    pi_kind = map.findPluginForKind(entry.kind0, entry, matchKind);
-    if (pi_kind != null) {
-      pi = pi_kind.composePlugin(pi, entry, matchKind);
-    }
-    if ((pi || (pi = this["default"])).adapt != null) {
-      pi = pi.adapt(this, entry, matchKind);
-    }
-    return pi;
-  };
 
   PluginMap.prototype.add = function() {
     var pi, plugins, _i, _len;
@@ -91,15 +77,26 @@ PluginMap = (function(_super) {
     return this.invalidate();
   };
 
-  PluginMap.prototype.addPluginTypeEx = function(key, args) {
+  PluginMap.prototype.newPluginTypeEx = function(key, args) {
     var cls, pi;
     cls = this.pluginTypes[key];
     if (!cls) {
       throw new Error("Plugin for type '" + key + "' not found");
     }
-    pi = new cls;
+    pi = new cls();
     pi.init.apply(pi, args);
-    this.add(pi);
+    return pi;
+  };
+
+  PluginMap.prototype.newPluginType = function() {
+    var args, key;
+    key = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+    return this.newPluginTypeEx(key, args);
+  };
+
+  PluginMap.prototype.addPluginTypeEx = function(key, args) {
+    var pi;
+    this.add(pi = this.newPluginTypeEx(key, args));
     return pi;
   };
 
@@ -133,6 +130,11 @@ PluginMap = (function(_super) {
 
   PluginMap.prototype.addModuleType = function() {
     return this.addPluginTypeEx('module', arguments);
+  };
+
+  PluginMap.prototype.addDefaultPlugins = function() {
+    this.addPluginAt([''], this.newPluginTypeEx('static'));
+    return this.addPluginAt(['&'], this.newPluginTypeEx('composed'));
   };
 
   return PluginMap;
