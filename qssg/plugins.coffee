@@ -83,8 +83,8 @@ class PluginMap extends qpluginMap.PluginCompositeMap
   addModuleType: -> @addPluginTypeEx('module', arguments)
 
   addDefaultPlugins: ->
-    @addPluginAt [''], @newPluginTypeEx('static')
-    @addPluginAt ['&'], @newPluginTypeEx('composed')
+    @addPluginAt '', @newPluginTypeEx('static')
+    @addPluginAt '&', @newPluginTypeEx('composed')
 
 exports.createPluginMap = -> new PluginMap()
 exports.plugins = exports.createPluginMap()

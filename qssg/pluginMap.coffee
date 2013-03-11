@@ -13,13 +13,12 @@ class PluginBaseMap
   constructor: ->
     Object.defineProperties @,
       db: value:{}
-      _cache: value:{}
 
   inspect: -> "«#{@constructor.name}»"
   toString: -> @inspect()
 
   invalidate: ->
-    @_cache = {} #Object.create(@db)
+    @_cache = Object.create(@db)
     return @
   reset: ->
     @db = {}; return @invalidate()
@@ -49,18 +48,14 @@ class PluginBaseMap
     return @invalidate()
 
   addPluginHash: (hash, deep)->
-    for k,pi of hash
-      if deep or Object.hasOwnProperty(hash, k)
-        if @acceptPlugin(k, pi)
-          @db[k] = pi
-          console.log "#{@} add: '#{k}' pi: #{pi}"
+    for key,pi of hash
+      if deep or Object.hasOwnProperty(hash, key)
+        if @acceptPlugin(key, pi)
+          @db[key] = pi
     return @invalidate()
-  addPluginAt: (keys, pi)->
-    keys = [keys] if keys.split?
-    for k in keys
-      if @acceptPlugin(k, pi)
-        @db[k] = pi
-        console.log "#{@} add: '#{k}' pi: #{pi}"
+  addPluginAt: (key, pi)->
+    if @acceptPlugin(key, pi)
+      @db[key] = pi
     return @invalidate()
 
   acceptPlugin: (key, pi)->
@@ -181,9 +176,9 @@ class PluginCompositeMap
     @dirsMap.addPluginHash(hash)
     @filesMap.addPluginHash(hash)
     return @
-  addPluginAt: (keys, pi)->
-    @dirsMap.addPluginAt(keys, pi)
-    @filesMap.addPluginAt(keys, pi)
+  addPluginAt: (key, pi)->
+    @dirsMap.addPluginAt(key, pi)
+    @filesMap.addPluginAt(key, pi)
     return @
 
   findPlugin = (entry)->
