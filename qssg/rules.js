@@ -27,7 +27,7 @@ Classifier = (function(_super) {
 
   Classifier.prototype.matchRules = function(entry, mx) {
     var fn, rules, _i, _j, _len, _len1, _ref;
-    if (!(typeof mx.match === 'function')) {
+    if (typeof mx.match !== 'function') {
       throw new Error("Classifier `mx` must implement `match()`");
     }
     _ref = this.rulesets;
@@ -204,7 +204,7 @@ qrules = {
     if (opt == null) {
       opt = {};
     }
-    if (opt.rulesetName === !false) {
+    if (opt.rulesetName !== false) {
       ruleset = ruleset.addRuleset(opt.w || 1.0, opt.rulesetName || 'simple');
     }
     ruleset.rule(qrules.thenMatchKey(opt.kind || 'simple'));

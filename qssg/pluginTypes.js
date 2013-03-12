@@ -119,7 +119,7 @@ CommonPluginBase = (function() {
 
   CommonPluginBase.prototype.bindContext = function(entry, callback) {
     return this.context(entry, function(err, value) {
-      if (!(value === void 0)) {
+      if (value !== void 0) {
         entry.ctx[entry.name0] = value;
       }
       return callback(err, value);
@@ -132,7 +132,7 @@ CommonPluginBase = (function() {
       if (err != null) {
         return callback(err);
       }
-      if (!(typeof value === 'function')) {
+      if (typeof value !== 'function') {
         err = new Error("" + this + " failed to create template function from " + entry);
         return callback(err, value);
       }
@@ -397,7 +397,7 @@ RenderedPlugin = (function(_super) {
   RenderedPlugin.prototype.rename = BasicPlugin.prototype.renameForFormat;
 
   RenderedPlugin.prototype.render = function(entry, vars, callback) {
-    return this.renderEntry(entry.extendVars(vars), callback);
+    return this.renderEntry(entry, entry.extendVars(vars), callback);
   };
 
   RenderedPlugin.prototype.context = function(entry, callback) {

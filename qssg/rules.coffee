@@ -18,7 +18,7 @@ class Classifier extends events.EventEmitter
     @_coreRules = @addRuleset(0, 'core')
 
   matchRules: (entry, mx)=>
-    if not (typeof mx.match is 'function')
+    if typeof mx.match isnt 'function'
       throw new Error("Classifier `mx` must implement `match()`")
     for rules in @rulesets
       for fn in rules
@@ -117,7 +117,7 @@ qrules =
     return ruleset
 
   simpleRuleset: (ruleset, opt={})->
-    if opt.rulesetName is not false
+    if opt.rulesetName isnt false
       ruleset = ruleset.addRuleset(opt.w||1.0, opt.rulesetName||'simple')
     ruleset.rule(qrules.thenMatchKey(opt.kind || 'simple'))
     return ruleset

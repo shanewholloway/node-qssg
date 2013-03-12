@@ -70,14 +70,14 @@ class CommonPluginBase
     @notImplemented('context', entry, callback)
   bindContext: (entry, callback)->
     @context entry, (err, value)->
-      if not (value is undefined)
+      if value isnt undefined
         entry.ctx[entry.name0] = value
       callback(err, value)
 
   bindTemplate: (entry, callback, prefix)->
     @context entry, (err, value)->
       return callback(err) if err?
-      if not (typeof value is 'function')
+      if typeof value isnt 'function'
         err = new Error("#{@} failed to create template function from #{entry}")
         return callback(err, value)
 
@@ -208,7 +208,7 @@ class StaticPlugin extends CombinedPluginBase
         console.warn "Ignoreing invalid static extension #{ext}"
 
   render: (entry, vars, callback)->
-    entry.touch(false) # update to source mtime
+    entry.touch(false) # update to src mtime
     callback(null, entry.readStream())
   context: (entry, callback)->
     entry.read(callback)
@@ -219,7 +219,7 @@ exports.StaticPlugin = StaticPlugin
 class RenderedPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
   render: (entry, vars, callback)->
-    @renderEntry(entry.extendVars(vars), callback)
+    @renderEntry(entry, entry.extendVars(vars), callback)
   context: (entry, callback)->
     @render(entry, {}, callback)
 

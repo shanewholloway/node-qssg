@@ -136,7 +136,7 @@ taskQueue = (limit, tgt, callback)->
     callback = limit; tgt=null; limit = 9e9
   if typeof tgt is 'function'
     callback = tgt; tgt=null
-  if not (typeof limit is 'number')
+  if not isFinite(limit)
     tgt = limit; limit = (tgt?.limit||9e9)+0
 
   cq = closureQueue

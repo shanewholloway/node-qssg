@@ -267,7 +267,7 @@ taskQueue = function(limit, tgt, callback) {
     callback = tgt;
     tgt = null;
   }
-  if (!(typeof limit === 'number')) {
+  if (!isFinite(limit)) {
     tgt = limit;
     limit = ((tgt != null ? tgt.limit : void 0) || 9e9) + 0;
   }
