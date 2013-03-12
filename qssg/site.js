@@ -90,6 +90,7 @@ Site = (function() {
   Site.prototype.matchEntryPlugin = function(plugin, entry, matchMethod) {
     var method, _ref,
       _this = this;
+    entry = plugin.rename(entry);
     if (((_ref = (method = plugin[matchMethod])) != null ? _ref.call : void 0) != null) {
       return this.tasks.defer(function() {
         return method.call(plugin, entry, _this.tasks().wrap(function(err) {

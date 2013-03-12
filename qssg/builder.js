@@ -19,13 +19,12 @@ SiteBuilder = (function() {
   }
 
   SiteBuilder.prototype.build = function(vars, doneBuildFn) {
-    var dirTasks, fnList, logStarted, rootOutput, rootPath, tasks, tidUpdate, trackerMap,
+    var dirTasks, fnList, logStarted, logUnchanged, rootOutput, tasks, tidUpdate, trackerMap,
       _this = this;
     if (typeof vars === 'function') {
       doneBuildFn = vars;
       vars = null;
     }
-    rootPath = this.rootPath;
     rootOutput = Object.create(null, {
       rootPath: {
         value: this.rootPath,
@@ -49,51 +48,55 @@ SiteBuilder = (function() {
       return doneBuildFn();
     });
     logStarted = this.logStarted.bind(this);
-    return this.contentTree.visit(function(vkind, contentItem, keyPath) {
-      var fullPath, objVars, output, relPath, renderAnswer;
-      if (contentItem.renderFn == null) {
-        return true;
-      }
+    logUnchanged = this.logUnchanged.bind(this);
+    return this.contentTree.visit(function(vkind, citem, keyPath) {
+      var fullPath, output, relPath, rvars;
       relPath = keyPath.join('/');
       fullPath = path.resolve(_this.rootPath, relPath);
       if (vkind === 'tree') {
         _this.fs.makeDirs(fullPath, dirTasks());
       }
-      output = Object.create(rootOutput, {
-        vkind: {
-          value: vkind
-        },
-        relPath: {
-          value: relPath,
-          enumerable: true
-        },
-        fullPath: {
-          value: fullPath
-        },
-        contentItem: {
-          value: contentItem
-        }
-      });
-      objVars = Object.create(vars, {
-        output: {
-          value: output,
-          enumerable: true
-        }
-      });
-      renderAnswer = tasks(function() {
-        delete trackerMap[relPath];
-        return _this.renderAnswerEx.apply(_this, [output].concat(__slice.call(arguments)));
-      });
-      trackerMap[relPath] = renderAnswer;
-      fnList.push(function(taskDone) {
-        return _this.fs.stat(output.fullPath, taskDone.wrap(function(err, stat) {
-          if (stat != null) {
-            output.mtime = stat.mtime;
+      if (citem.renderFn != null) {
+        output = Object.create(rootOutput, {
+          vkind: {
+            value: vkind
+          },
+          relPath: {
+            value: relPath,
+            enumerable: true
+          },
+          fullPath: {
+            value: fullPath
+          },
+          content: {
+            value: citem
           }
-          logStarted(output);
-          return contentItem.renderFn(objVars, renderAnswer);
-        }));
-      });
+        });
+        rvars = Object.create(vars, {
+          output: {
+            value: output,
+            enumerable: true
+          }
+        });
+        fnList.push(function(taskDone) {
+          return _this.fs.stat(output.fullPath, taskDone.wrap(function(err, stat) {
+            var renderAnswer;
+            if (stat != null) {
+              output.mtime = stat.mtime;
+              if ((citem.mtime != null) && citem.mtime > stat.mtime) {
+                return logUnchanged(output);
+              }
+            }
+            logStarted(output);
+            renderAnswer = tasks(function() {
+              delete trackerMap[relPath];
+              return _this.renderAnswerEx.apply(_this, [output].concat(__slice.call(arguments)));
+            });
+            trackerMap[relPath] = renderAnswer;
+            return citem.renderFn(rvars, renderAnswer);
+          }));
+        });
+      }
       return true;
     });
   };
@@ -101,13 +104,13 @@ SiteBuilder = (function() {
   SiteBuilder.prototype.fs = qutil.fs;
 
   SiteBuilder.prototype.renderAnswerEx = function(rx, err, what) {
-    var mtime, _ref, _ref1,
+    var mtime, _ref,
       _this = this;
     if ((err != null) && !this.logError(err, rx)) {
       return;
     }
     if (what != null) {
-      mtime = (_ref = rx.contentItem) != null ? (_ref1 = _ref.entry) != null ? _ref1.mtime : void 0 : void 0;
+      mtime = (_ref = rx.content) != null ? _ref.mtime : void 0;
       if ((mtime != null) && rx.mtime && mtime <= rx.mtime) {
         this.logUnchanged(rx);
       } else {
@@ -127,7 +130,7 @@ SiteBuilder = (function() {
     var _ref, _ref1;
     return {
       dst: path.relative(this.cwd, rx.relPath),
-      src: path.relative(this.cwd, ((_ref = rx.contentItem) != null ? (_ref1 = _ref.entry) != null ? _ref1.srcPath : void 0 : void 0) || rx.relPath)
+      src: path.relative(this.cwd, ((_ref = rx.content) != null ? (_ref1 = _ref.entry) != null ? _ref1.srcPath : void 0 : void 0) || rx.relPath)
     };
   };
 

@@ -46,6 +46,21 @@ ContentBaseNode = (function() {
     return comp;
   };
 
+  ContentBaseNode.prototype.touch = function(arg) {
+    if (arg == null) {
+      arg = true;
+    }
+    if (arg === 0) {
+      delete this.mtime;
+    } else if (arg === true) {
+      this.mtime = new Date();
+    } else {
+      arg = Math.max(this.mtime || 0, arg || 0);
+      this.mtime = new Date(arg);
+    }
+    return this.mtime;
+  };
+
   return ContentBaseNode;
 
 })();
@@ -56,9 +71,8 @@ ContentItem = (function(_super) {
 
   ContentItem.prototype.kind = 'item';
 
-  function ContentItem(container, key, entry) {
+  function ContentItem(container, key) {
     this.key = key;
-    this.entry = entry;
     this.init(container);
   }
 
@@ -152,9 +166,8 @@ ContentTree = (function(_super) {
 
   ContentTree.prototype.kind = 'tree';
 
-  function ContentTree(container, key, entry) {
+  function ContentTree(container, key) {
     this.key = key;
-    this.entry = entry;
     this.items = {};
     this.init(container);
   }
@@ -169,6 +182,10 @@ ContentTree = (function(_super) {
     }
     this.items[key] = item;
     return item;
+  };
+
+  ContentTree.prototype.getItem = function(key) {
+    return this.items[key];
   };
 
   ContentTree.prototype.visit = function(visitor, keyPath) {
@@ -219,16 +236,16 @@ CtxTree = (function(_super) {
     if (ctx_parent == null) {
       return {};
     }
-    ctx_next = ctx_parent[this.entry.name0];
+    ctx_next = ctx_parent[this.key];
     ctx = Object.create(ctx_next || null, {
       ctx_next: {
         value: ctx_next
       }
     });
-    return ctx_parent[this.entry.name0] = ctx;
+    return ctx_parent[this.key] = ctx;
   };
 
-  CtxTree.prototype.adaptMatchKind = function(matchKind, entry) {
+  CtxTree.prototype.adaptMatchKind = function(matchKind) {
     return 'context';
   };
 
@@ -254,36 +271,44 @@ ContentCollectionMixin = (function() {
     });
   };
 
-  ContentCollectionMixin.prototype.newContentEx = function(container, key, entry) {
-    return new this.ContentItem(container, key, entry);
+  ContentCollectionMixin.prototype.newContentEx = function(container, key) {
+    return new this.ContentItem(container, key);
   };
 
-  ContentCollectionMixin.prototype.newContent = function(key, entry) {
-    return this.newContentEx(this, key, entry);
+  ContentCollectionMixin.prototype.newContent = function(key) {
+    return this.newContentEx(this, key);
   };
 
-  ContentCollectionMixin.prototype.addContent = function(key, entry) {
-    return this.addItem(key, this.newContentEx(this, key, entry));
+  ContentCollectionMixin.prototype.addContent = function(key) {
+    return this.addItem(key, this.newContentEx(this, key));
   };
 
-  ContentCollectionMixin.prototype.newTreeEx = function(container, key, entry) {
-    return new this.ContentTree(container, key, entry);
+  ContentCollectionMixin.prototype.getContent = function(key) {
+    var item;
+    if ((item = typeof this.getItem === "function" ? this.getItem(key) : void 0) == null) {
+      item = this.addContent(key);
+    }
+    return item;
   };
 
-  ContentCollectionMixin.prototype.newTree = function(key, entry) {
-    return this.newTreeEx(this, key, entry);
+  ContentCollectionMixin.prototype.newTreeEx = function(container, key) {
+    return new this.ContentTree(container, key);
   };
 
-  ContentCollectionMixin.prototype.addTree = function(key, entry) {
-    return this.addItem(key, this.newTreeEx(this, key, entry));
+  ContentCollectionMixin.prototype.newTree = function(key) {
+    return this.newTreeEx(this, key);
   };
 
-  ContentCollectionMixin.prototype.newCtxTreeEx = function(container, key, entry) {
-    return new this.CtxTree(container, key, entry);
+  ContentCollectionMixin.prototype.addTree = function(key) {
+    return this.addItem(key, this.newTreeEx(this, key));
   };
 
-  ContentCollectionMixin.prototype.newCtxTree = function(key, entry) {
-    return this.newCtxTreeEx(this, key, entry);
+  ContentCollectionMixin.prototype.newCtxTreeEx = function(container, key) {
+    return new this.CtxTree(container, key);
+  };
+
+  ContentCollectionMixin.prototype.newCtxTree = function(key) {
+    return this.newCtxTreeEx(this, key);
   };
 
   ContentCollectionMixin.mixInto = function(tgtClass) {

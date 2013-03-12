@@ -24,9 +24,7 @@ class MatchEntry
     rootPath: get: -> @src.node.rootPath
     parentEntry: get: -> @src.node.entry
 
-    ctx: get: -> @contentItem.ctx
-    ctx_w: get: -> @contentTree?.ctx || @baseTree.ctx
-
+    ctx: get: -> @content?.ctx || @baseTree.ctx
     name: get:->
       ext = @ext.join('.')
       @name0 + (ext && "."+ext or '')
@@ -35,19 +33,13 @@ class MatchEntry
   isDirectory: -> @src.isDirectory()
 
   constructor: (walkEntry, baseTree, pluginMap)->
-    ext = walkEntry.name.split('.')
-    name0 = ext.shift()
+    @ext = walkEntry.name.split('.')
+    @name0 = @ext.shift()
 
     Object.defineProperties @,
       src: value: walkEntry
-      srcName0: value: name0
-      srcExt: get:-> ext.slice()
-      stat: value: walkEntry.stat
       baseTree: value: baseTree
       pluginMap: value: pluginMap
-
-    @name0 = name0
-    @ext = ext.slice()
 
   setMatchMethod: (matchKind)->
     if @baseTree.adaptMatchKind?
@@ -72,29 +64,36 @@ class MatchEntry
 
   #~ content/output related
 
-  newContentTree: (key=@name0)->
-    @contentTree = @baseTree.newTree(key)
-    return @contentItem = @contentTree
+  _setContent: (content, contentTree)->
+    Object.defineProperty @, 'content',
+      value: content, enumerable: true
+    if contentTree?
+      Object.defineProperty content, 'tree',
+        value: contentTree
+    return content
+
   newCtxTree: (key=@name0)->
-    @contentTree = @baseTree.newTree(key)
-    return @contentItem = @contentTree
+    tree = @baseTree.newTree(key)
+    return @_setContent tree, tree
   addContentTree: (key=@name0)->
-    @contentTree = @baseTree.addTree(key)
-    return @contentItem = @contentTree
+    tree = @baseTree.addTree(key)
+    return @_setContent tree, tree
 
-  newContent: (key=@name0)->
-    return @contentItem = @baseTree.newContent(key)
-  addContent: (key=@name0)->
-    return @contentItem = @baseTree.addContent(key)
+  addComposite: (key=@name0, childKey)->
+    tree = @baseTree.newTree(key)
+    citem = tree.getContent(childKey||key)
+    @baseTree.addItem(key, citem)
+    return @_setContent citem, tree
 
-  touch: (arg)->
-    if arg is null
-      delete @mtime
-    else
-      arg = new Date() if arg is true
-      @mtime = new Date(Math.max(@mtime||0, arg||0, @stat.mtime))
-    return @mtime
+  getContent: (key=@name0)->
+    return @content if @content?
+    return @_setContent @baseTree.getContent(key)
 
+  touch: (arg=true)->
+    arg = @stat.mtime if arg is false
+    @content.touch(arg)
+
+  getWalkContentTree: -> @content?.tree || @baseTree
 
   #~ accessing content of entry
 
@@ -164,10 +163,8 @@ class MatchingWalker extends tromp.WalkRoot
       pluginMap:{value:pluginMap||@pluginMap}
 
   walkListing: (listing)->
-    if (entry = listing.node.entry)?
-      if not (tree = entry.baseTree)?
-        tree = entry.addContentTree()
-      return @instance(tree, entry.pluginMap)
+    if (entry = listing.node.entry)?.isDirectory()
+      return @instance entry.getWalkContentTree(), entry.pluginMap
     return @
 
   walkRootContent: (aPath, baseTree, pluginMap)->

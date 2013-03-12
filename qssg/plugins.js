@@ -133,8 +133,8 @@ PluginMap = (function(_super) {
   };
 
   PluginMap.prototype.addDefaultPlugins = function() {
-    this.addPluginAt([''], this.newPluginTypeEx('static'));
-    return this.addPluginAt(['&'], this.newPluginTypeEx('composed'));
+    this.addPluginAt('', this.newPluginTypeEx('static'));
+    return this.addPluginAt('&', this.newPluginTypeEx('composed'));
   };
 
   return PluginMap;

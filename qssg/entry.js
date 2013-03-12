@@ -58,13 +58,8 @@ MatchEntry = (function() {
     },
     ctx: {
       get: function() {
-        return this.contentItem.ctx;
-      }
-    },
-    ctx_w: {
-      get: function() {
         var _ref;
-        return ((_ref = this.contentTree) != null ? _ref.ctx : void 0) || this.baseTree.ctx;
+        return ((_ref = this.content) != null ? _ref.ctx : void 0) || this.baseTree.ctx;
       }
     },
     name: {
@@ -85,23 +80,11 @@ MatchEntry = (function() {
   };
 
   function MatchEntry(walkEntry, baseTree, pluginMap) {
-    var ext, name0;
-    ext = walkEntry.name.split('.');
-    name0 = ext.shift();
+    this.ext = walkEntry.name.split('.');
+    this.name0 = this.ext.shift();
     Object.defineProperties(this, {
       src: {
         value: walkEntry
-      },
-      srcName0: {
-        value: name0
-      },
-      srcExt: {
-        get: function() {
-          return ext.slice();
-        }
-      },
-      stat: {
-        value: walkEntry.stat
       },
       baseTree: {
         value: baseTree
@@ -110,8 +93,6 @@ MatchEntry = (function() {
         value: pluginMap
       }
     });
-    this.name0 = name0;
-    this.ext = ext.slice();
   }
 
   MatchEntry.prototype.setMatchMethod = function(matchKind) {
@@ -166,54 +147,71 @@ MatchEntry = (function() {
     return vars;
   };
 
-  MatchEntry.prototype.newContentTree = function(key) {
-    if (key == null) {
-      key = this.name0;
+  MatchEntry.prototype._setContent = function(content, contentTree) {
+    Object.defineProperty(this, 'content', {
+      value: content,
+      enumerable: true
+    });
+    if (contentTree != null) {
+      Object.defineProperty(content, 'tree', {
+        value: contentTree
+      });
     }
-    this.contentTree = this.baseTree.newTree(key);
-    return this.contentItem = this.contentTree;
+    return content;
   };
 
   MatchEntry.prototype.newCtxTree = function(key) {
+    var tree;
     if (key == null) {
       key = this.name0;
     }
-    this.contentTree = this.baseTree.newTree(key);
-    return this.contentItem = this.contentTree;
+    tree = this.baseTree.newTree(key);
+    return this._setContent(tree, tree);
   };
 
   MatchEntry.prototype.addContentTree = function(key) {
+    var tree;
     if (key == null) {
       key = this.name0;
     }
-    this.contentTree = this.baseTree.addTree(key);
-    return this.contentItem = this.contentTree;
+    tree = this.baseTree.addTree(key);
+    return this._setContent(tree, tree);
   };
 
-  MatchEntry.prototype.newContent = function(key) {
+  MatchEntry.prototype.addComposite = function(key, childKey) {
+    var citem, tree;
     if (key == null) {
       key = this.name0;
     }
-    return this.contentItem = this.baseTree.newContent(key);
+    tree = this.baseTree.newTree(key);
+    citem = tree.getContent(childKey || key);
+    this.baseTree.addItem(key, citem);
+    return this._setContent(citem, tree);
   };
 
-  MatchEntry.prototype.addContent = function(key) {
+  MatchEntry.prototype.getContent = function(key) {
     if (key == null) {
       key = this.name0;
     }
-    return this.contentItem = this.baseTree.addContent(key);
+    if (this.content != null) {
+      return this.content;
+    }
+    return this._setContent(this.baseTree.getContent(key));
   };
 
   MatchEntry.prototype.touch = function(arg) {
-    if (arg === null) {
-      delete this.mtime;
-    } else {
-      if (arg === true) {
-        arg = new Date();
-      }
-      this.mtime = new Date(Math.max(this.mtime || 0, arg || 0, this.stat.mtime));
+    if (arg == null) {
+      arg = true;
     }
-    return this.mtime;
+    if (arg === false) {
+      arg = this.stat.mtime;
+    }
+    return this.content.touch(arg);
+  };
+
+  MatchEntry.prototype.getWalkContentTree = function() {
+    var _ref;
+    return ((_ref = this.content) != null ? _ref.tree : void 0) || this.baseTree;
   };
 
   MatchEntry.prototype.fs = require('fs');
@@ -347,12 +345,9 @@ MatchingWalker = (function(_super) {
   };
 
   MatchingWalker.prototype.walkListing = function(listing) {
-    var entry, tree;
-    if ((entry = listing.node.entry) != null) {
-      if ((tree = entry.baseTree) == null) {
-        tree = entry.addContentTree();
-      }
-      return this.instance(tree, entry.pluginMap);
+    var entry, _ref;
+    if ((_ref = (entry = listing.node.entry)) != null ? _ref.isDirectory() : void 0) {
+      return this.instance(entry.getWalkContentTree(), entry.pluginMap);
     }
     return this;
   };

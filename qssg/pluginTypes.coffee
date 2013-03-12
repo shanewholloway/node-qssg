@@ -9,8 +9,7 @@
 
 qpluginKinds = require('./pluginKinds')
 module.exports = exports = Object.create(qpluginKinds)
-
-exports.pluginTypes = pluginTypes = Object.create(exports.pluginTypes || null)
+pluginTypes = exports.pluginTypes
 
 exports.splitExt = splitExt = (ext)->
   ext = ext.split(/[. ;,]+/) if ext.split?
@@ -54,57 +53,65 @@ class CommonPluginBase
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  pluginProtocol: ['adapt','rename', 'bindRender', 'bindContext', 'render', 'context']
+  pluginProtocol: ['adapt','rename', 'render', 'context',
+    'bindRender', 'bindContext', 'bindTemplate']
 
   adapt: (entry)-> @
   rename: (entry)-> entry
 
-  bindRender: (entry, callback)->
-    @rename(entry)
-    citem = entry.addContent()
-    citem.renderFn = @render.bind(entry)
-    callback(null, citem)
   render: (entry, vars, answerFn)->
     @notImplemented('render', entry, answerFn)
+  bindRender: (entry, callback)->
+    citem = entry.getContent()
+    citem.renderFn = @render.bind(entry)
+    callback(null, citem)
 
+  context: (entry, callback)->
+    @notImplemented('context', entry, callback)
   bindContext: (entry, callback)->
     @context entry, (err, value)->
       if not (value is undefined)
-        entry.ctx_w[entry.name0] = value
+        entry.ctx[entry.name0] = value
       callback(err, value)
-  context: (entry, callback)->
-    @notImplemented('context', entry, callback)
 
+  bindTemplate: (entry, callback, prefix)->
+    @context entry, (err, value)->
+      return callback(err) if err?
+      if not (typeof value is 'function')
+        err = new Error("#{@} failed to create template function from #{entry}")
+        return callback(err, value)
+
+      if prefix is false
+        citem = entry.getContent()
+        citem.templateFn = value
+        return callback(null, citem)
+      else
+        entry.ctx[prefix+entry.name0] = value
+        return callback(null, value)
 
 class DirPluginBase extends CommonPluginBase
   isDirPlugin: true
 
   pluginProtocol:
     CommonPluginBase::pluginProtocol.concat [
-      'contentDir', 'bindContextDir']
+      'contentDir', 'compositeDir', 'contextDir']
 
   contentDir: (entry, callback)->
-    if entry.ext.length is 0
-      ctree = entry.addContentTree()
-      callback(null, ctree)
-    else
-      ctree = entry.newContentTree()
-      @bindRender(entry, callback)
+    ctree = entry.addContentTree()
+    callback(null, ctree)
     entry.walk()
 
-  bindContextDir: (entry, callback)->
+  compositeDir: (entry, callback)->
+    ctree = entry.addComposite()
+    callback(null, ctree)
+    entry.walk()
+
+  contextDir: (entry, callback)->
     if entry.ext.length>0
       console.warn 'Context directories with extensions are not defined'
     ctree = entry.newCtxTree()
     entry.walk()
     callback(null, ctree)
-
-  render: (entry, vars, answerFn)->
-    di = entry.contentTree?.items[entry.name]
-    if not di? or not di.renderFn?
-      answerFn("Entry '#{entry.name}' not defined for composite")
-    else
-      di.renderFn(arguments...)
 
 
 class FilePluginBase extends CommonPluginBase
@@ -142,7 +149,7 @@ exports.BasicPlugin = BasicPlugin
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class PipelinePlugin extends BasicPlugin
-  constructor: (@pluginList, ext)->
+  constructor: (@pluginList)->
 
   rename: (entry)->
     for pi in @pluginList
@@ -201,7 +208,7 @@ class StaticPlugin extends CombinedPluginBase
         console.warn "Ignoreing invalid static extension #{ext}"
 
   render: (entry, vars, callback)->
-    entry.touch(false)
+    entry.touch(false) # update to source mtime
     callback(null, entry.readStream())
   context: (entry, callback)->
     entry.read(callback)
@@ -266,6 +273,24 @@ class CompileRenderPlugin extends BasicPlugin
 
 pluginTypes.compile_render = CompileRenderPlugin
 exports.CompileRenderPlugin = CompileRenderPlugin
+
+
+class JsonPlugin extends BasicPlugin
+  rename: BasicPlugin::renameForFormat
+  parse: (entry, callback)->
+    entry.read (err, data)->
+      return callback(err) if err?
+      try callback(null, JSON.parse(data), data)
+      catch err then callback(err, null, data)
+
+  context: (entry, callback)->
+    @parse(entry, callback)
+  render: (entry, vars, answerFn)->
+    @parse entry, (err, obj, data)->
+      callback(err, data)
+
+pluginTypes.json = JsonPlugin
+exports.JsonPlugin = JsonPlugin
 
 
 class ModulePlugin extends BasicPlugin

@@ -64,6 +64,7 @@ class Site
     @walker.walkRootContent aPath, tree, plugins
 
   matchEntryPlugin: (plugin, entry, matchMethod)->
+    entry = plugin.rename(entry)
     if (method = plugin[matchMethod])?.call?
       @tasks.defer =>
         method.call plugin, entry, @tasks().wrap (err)->

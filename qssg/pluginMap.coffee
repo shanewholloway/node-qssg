@@ -18,7 +18,7 @@ class PluginBaseMap
   toString: -> @inspect()
 
   invalidate: ->
-    @_cache = Object.create(@db)
+    @_cache = {}
     return @
   reset: ->
     @db = {}; return @invalidate()
@@ -61,11 +61,11 @@ class PluginBaseMap
   acceptPlugin: (key, pi)->
     throw new Error("Subclass responsibility. (#{@constructor.name})")
 
-  findPluginForExt: (ext, entry)->
-    if not (pi=@_cache[ext])?
-      @_cache[ext] = pi = @_findPluginForExt(ext, entry)
-    return pi
-  _findPluginForExt: (ext, entry)->
+  findPluginListForExt: (ext, entry)->
+    if not (pi_list=@_cache[ext])?
+      @_cache[ext] = pi_list = @_findPluginListForExt(ext, entry)
+    return pi_list.slice()
+  _findPluginListForExt: (ext, entry)->
     throw new Error("Subclass responsibility. (#{@constructor.name})")
   default: -> @db['']
 
@@ -78,10 +78,9 @@ class PluginBaseMap
     return @db['&']
 
   findPlugin: (entry)->
-    pi_ext = @findPluginForExt(entry.ext, entry)
-    pi_ext = pi_ext.adapt(entry)
+    pi_list = @findPluginListForExt(entry.ext, entry)
     pi_kind = @findPluginForKind(entry.kind0, entry)
-    return pi_kind.composePlugin(pi_ext, entry)
+    return pi_kind.composePlugin(pi_list, entry)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -91,32 +90,26 @@ class PluginFilesMap extends PluginBaseMap
       return pi.isFileKindPlugin
     else return pi.isFilePlugin
 
-  _findPluginForExt: (ext, entry)->
+  _findPluginListForExt: (ext, entry)->
     n = ext.length
-    if n is 0
-      return @db['']
+    return [@db['']] if n is 0
+
     pi = @db[ext[n-1]]
-    if n > 1
-      pi_list = (@_lookupPair(ext[i],ext[i+1]) for i in [n-2..0])
-      pi_list[0] ||= pi
+    return [pi or @default()] if n is 1
 
-      # trim off the list after the first undefined
-      i = pi_list.indexOf(undefined)
-      pi_list.splice(i) if ~i
+    pi_list = (@_lookupPair(ext[i],ext[i+1]) for i in [n-2..0])
+    pi_list[0] ||= pi
 
-      if pi_list.length > 1
-        pi = @asPluginPipeline(pi_list, ext)
-      else pi = pi_list.pop()
-
-    return pi if pi?
-    return @default()
+    # trim off the list after the first undefined
+    i = pi_list.indexOf(undefined)
+    pi_list.splice(i) if ~i
+    if pi_list.length is 0
+      pi_list.push @default()
+    return pi_list
   _lookupPair: (fmt,ext)-> return (
       @db[[fmt,ext]] || # direct match '.fmt.ext'
       @db[[fmt,'*']] || # or middle match: '.fmt.*'
       @db[['*',ext]]  ) # or end match: '.*.ext'
-
-  asPluginPipeline: (pluginList, ext)->
-    return new PipelinePlugin(pluginList, ext)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -126,12 +119,12 @@ class PluginDirsMap extends PluginBaseMap
       return pi.isDirKindPlugin
     else return pi.isDirPlugin
 
-  _findPluginForExt: (ext, entry)->
+  _findPluginListForExt: (ext, entry)->
     if ext.length is 0
-      return @db['']
+      return [@db['']]
     if ext.length > 1
       console.warn "Multiple extensions on directories are undefined. (re: #{entry.srcRelPath})"
-    return @db[ext[0]] or @default()
+    return [@db[ext[0]] or @default()]
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

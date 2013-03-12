@@ -24,15 +24,39 @@ class ComposedCommonPlugin
   inspect: -> "«#{@constructor.name}»"
   toString: -> @inspect()
 
-  composePlugin: (pi, entry)->
-    Object.create @, pi:value:pi
+  asPluginPipeline: (pi_list)->
+    new pluginTypes.pipeline(pi_list)
+
+  composePlugin: (pi_list, entry)->
+    @extendPlugins?(pi_list)
+    if pi_list.length>1
+      pi = @asPluginPipeline(pi_list)
+    else pi = pi_list[0]
+    pi = pi.adapt(entry)
+
+    self = Object.create @, pi:value:pi
+    self.initComposed?(pi)
+    return self
+
+  rename: (entry)-> @pi.rename(entry)
+
+  simple: (entry, callback)-> @notImplemented('simple', entry, callback)
+  composite: (entry, callback)-> @notImplemented('composite', entry, callback)
+  context: (entry, callback)-> @notImplemented('context', entry, callback)
+  simpleDir: (entry, callback)-> @notImplemented('simpleDir', entry, callback)
+  compositeDir: (entry, callback)-> @notImplemented('compositeDir', entry, callback)
+  contextDir: (entry, callback)-> @notImplemented('contextDir', entry, callback)
+
+  notImplemented: (protocolMethod, entry, callback)->
+    err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{entry.srcRelPath}'}"
+    callback(new Error(err)); return
 
 exports.ComposedCommonPlugin = ComposedCommonPlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class ComposedFilePlugin extends ComposedCommonPlugin
-  isFileKindPlugin: true
+class ComposedPlugin extends ComposedCommonPlugin
+  isFileKindPlugin: true; isDirKindPlugin: true
 
   simple: (entry, callback)->
     @pi.bindRender(entry, callback)
@@ -41,38 +65,29 @@ class ComposedFilePlugin extends ComposedCommonPlugin
   context: (entry, callback)->
     @pi.bindContext(entry, callback)
 
-exports.ComposedFilePlugin = ComposedFilePlugin
-
-pluginTypes.composed_file = ComposedFilePlugin
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-class ComposedDirPlugin extends ComposedCommonPlugin
-  isDirKindPlugin: true
-
   simpleDir: (entry, callback)->
+    if entry.ext.length
+      return @compositeDir(entry, callback)
     @pi.contentDir(entry, callback)
   compositeDir: (entry, callback)->
-    @pi.contentDir(entry, callback)
+    @pi.compositeDir(entry, callback)
   contextDir: (entry, callback)->
-    @pi.bindContextDir(entry, callback)
-
-exports.ComposedDirPlugin = ComposedDirPlugin
-pluginTypes.composed_dir = ComposedDirPlugin
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-class ComposedPlugin extends ComposedCommonPlugin
-  isFileKindPlugin: true
-  isDirKindPlugin: true
-
-  simple: ComposedFilePlugin::simple
-  composite: ComposedFilePlugin::composite
-  context: ComposedFilePlugin::context
-  simpleDir: ComposedDirPlugin::simpleDir
-  compositeDir: ComposedDirPlugin::compositeDir
-  contextDir: ComposedDirPlugin::contextDir
+    @pi.contextDir(entry, callback)
 
 exports.ComposedPlugin = ComposedPlugin
 pluginTypes.composed = ComposedPlugin
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class TemplatePlugin extends ComposedCommonPlugin
+  isFileKindPlugin: true; isDirKindPlugin: true
+
+  prefix: 't_'
+  composite: (entry, callback)->
+    @pi.bindTemplate(entry, callback, false)
+  context: (entry, callback)->
+    @pi.bindTemplate(entry, callback, @prefix)
+
+exports.TemplatePlugin = TemplatePlugin
+pluginTypes.template = TemplatePlugin
 

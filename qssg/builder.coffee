@@ -21,7 +21,6 @@ class SiteBuilder
     if typeof vars is 'function'
       doneBuildFn = vars; vars = null
 
-    rootPath = @rootPath
     rootOutput = Object.create null,
       rootPath: value: @rootPath, enumerable: true
     vars = Object.create vars||null,
@@ -35,33 +34,35 @@ class SiteBuilder
     tasks = qutil.createTaskTracker -> clearInterval(tidUpdate); doneBuildFn()
 
     logStarted = @logStarted.bind(@)
-    @contentTree.visit (vkind, contentItem, keyPath)=>
-      return true if not contentItem.renderFn?
-
+    logUnchanged = @logUnchanged.bind(@)
+    @contentTree.visit (vkind, citem, keyPath)=>
       relPath = keyPath.join('/')
       fullPath = path.resolve(@rootPath, relPath)
       if vkind is 'tree'
         @fs.makeDirs fullPath, dirTasks()
 
-      output = Object.create rootOutput,
-        vkind: value: vkind
-        relPath: value: relPath, enumerable: true
-        fullPath: value: fullPath
-        contentItem: value: contentItem
+      if citem.renderFn?
+        output = Object.create rootOutput,
+          vkind: value: vkind
+          relPath: value: relPath, enumerable: true
+          fullPath: value: fullPath
+          content: value: citem
 
-      objVars = Object.create vars,
-        output: value: output, enumerable: true
+        rvars = Object.create vars,
+          output: value: output, enumerable: true
 
-      renderAnswer = tasks =>
-        delete trackerMap[relPath]
-        @renderAnswerEx(output, arguments...)
-      trackerMap[relPath] = renderAnswer
-
-      fnList.push (taskDone)=>
-        @fs.stat output.fullPath, taskDone.wrap (err, stat)->
-          output.mtime = stat.mtime if stat?
-          logStarted(output)
-          contentItem.renderFn(objVars, renderAnswer)
+        fnList.push (taskDone)=>
+          @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
+            if stat?
+              output.mtime = stat.mtime
+              if citem.mtime? and citem.mtime > stat.mtime
+                return logUnchanged(output)
+            logStarted(output)
+            renderAnswer = tasks =>
+              delete trackerMap[relPath]
+              @renderAnswerEx(output, arguments...)
+            trackerMap[relPath] = renderAnswer
+            citem.renderFn(rvars, renderAnswer)
 
       return true
 
@@ -71,21 +72,20 @@ class SiteBuilder
       return
 
     if what?
-      mtime = rx.contentItem?.entry?.mtime
+      mtime = rx.content?.mtime
       if mtime? and rx.mtime and mtime<=rx.mtime
         @logUnchanged(rx)
       else
         @fsTaskQueue.do =>
           if what.pipe?
             what.pipe(@fs.createWriteStream(rx.fullPath))
-          else
-            @fs.writeFile(rx.fullPath, what)
+          else @fs.writeFile(rx.fullPath, what)
           @logChanged(rx)
     return
 
   logPathsFor: (rx)->
     dst: path.relative @cwd, rx.relPath
-    src: path.relative @cwd, rx.contentItem?.entry?.srcPath || rx.relPath
+    src: path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
   logStarted: (rx)->
     #paths = @logPathsFor(rx)
     #console.error "start['#{paths.src}'] -- '#{paths.dst}'"
@@ -100,7 +100,7 @@ class SiteBuilder
     return
   logUnchanged: (rx)->
     #dstPath = path.relative @cwd, rx.relPath
-    #srcPath = path.relative @cwd, rx.contentItem?.entry?.srcPath || rx.relPath
+    #srcPath = path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
     #console.error "unchanged['#{srcPath}'] -- '#{dstPath}'"
     return
 

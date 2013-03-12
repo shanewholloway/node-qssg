@@ -11,9 +11,6 @@ PluginBaseMap = (function() {
     Object.defineProperties(this, {
       db: {
         value: {}
-      },
-      _cache: {
-        value: {}
       }
     });
   }
@@ -85,30 +82,21 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.addPluginHash = function(hash, deep) {
-    var k, pi;
-    for (k in hash) {
-      pi = hash[k];
-      if (deep || Object.hasOwnProperty(hash, k)) {
-        if (this.acceptPlugin(k, pi)) {
-          this.db[k] = pi;
-          console.log("" + this + " add: '" + k + "' pi: " + pi);
+    var key, pi;
+    for (key in hash) {
+      pi = hash[key];
+      if (deep || Object.hasOwnProperty(hash, key)) {
+        if (this.acceptPlugin(key, pi)) {
+          this.db[key] = pi;
         }
       }
     }
     return this.invalidate();
   };
 
-  PluginBaseMap.prototype.addPluginAt = function(keys, pi) {
-    var k, _i, _len;
-    if (keys.split != null) {
-      keys = [keys];
-    }
-    for (_i = 0, _len = keys.length; _i < _len; _i++) {
-      k = keys[_i];
-      if (this.acceptPlugin(k, pi)) {
-        this.db[k] = pi;
-        console.log("" + this + " add: '" + k + "' pi: " + pi);
-      }
+  PluginBaseMap.prototype.addPluginAt = function(key, pi) {
+    if (this.acceptPlugin(key, pi)) {
+      this.db[key] = pi;
     }
     return this.invalidate();
   };
@@ -117,15 +105,15 @@ PluginBaseMap = (function() {
     throw new Error("Subclass responsibility. (" + this.constructor.name + ")");
   };
 
-  PluginBaseMap.prototype.findPluginForExt = function(ext, entry) {
-    var pi;
-    if ((pi = this._cache[ext]) == null) {
-      this._cache[ext] = pi = this._findPluginForExt(ext, entry);
+  PluginBaseMap.prototype.findPluginListForExt = function(ext, entry) {
+    var pi_list;
+    if ((pi_list = this._cache[ext]) == null) {
+      this._cache[ext] = pi_list = this._findPluginListForExt(ext, entry);
     }
-    return pi;
+    return pi_list.slice();
   };
 
-  PluginBaseMap.prototype._findPluginForExt = function(ext, entry) {
+  PluginBaseMap.prototype._findPluginListForExt = function(ext, entry) {
     throw new Error("Subclass responsibility. (" + this.constructor.name + ")");
   };
 
@@ -148,11 +136,10 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.findPlugin = function(entry) {
-    var pi_ext, pi_kind;
-    pi_ext = this.findPluginForExt(entry.ext, entry);
-    pi_ext = pi_ext.adapt(entry);
+    var pi_kind, pi_list;
+    pi_list = this.findPluginListForExt(entry.ext, entry);
     pi_kind = this.findPluginForKind(entry.kind0, entry);
-    return pi_kind.composePlugin(pi_ext, entry);
+    return pi_kind.composePlugin(pi_list, entry);
   };
 
   return PluginBaseMap;
@@ -175,45 +162,37 @@ PluginFilesMap = (function(_super) {
     }
   };
 
-  PluginFilesMap.prototype._findPluginForExt = function(ext, entry) {
+  PluginFilesMap.prototype._findPluginListForExt = function(ext, entry) {
     var i, n, pi, pi_list;
     n = ext.length;
     if (n === 0) {
-      return this.db[''];
+      return [this.db['']];
     }
     pi = this.db[ext[n - 1]];
-    if (n > 1) {
-      pi_list = (function() {
-        var _i, _ref, _results;
-        _results = [];
-        for (i = _i = _ref = n - 2; _ref <= 0 ? _i <= 0 : _i >= 0; i = _ref <= 0 ? ++_i : --_i) {
-          _results.push(this._lookupPair(ext[i], ext[i + 1]));
-        }
-        return _results;
-      }).call(this);
-      pi_list[0] || (pi_list[0] = pi);
-      i = pi_list.indexOf(void 0);
-      if (~i) {
-        pi_list.splice(i);
-      }
-      if (pi_list.length > 1) {
-        pi = this.asPluginPipeline(pi_list, ext);
-      } else {
-        pi = pi_list.pop();
-      }
+    if (n === 1) {
+      return [pi || this["default"]()];
     }
-    if (pi != null) {
-      return pi;
+    pi_list = (function() {
+      var _i, _ref, _results;
+      _results = [];
+      for (i = _i = _ref = n - 2; _ref <= 0 ? _i <= 0 : _i >= 0; i = _ref <= 0 ? ++_i : --_i) {
+        _results.push(this._lookupPair(ext[i], ext[i + 1]));
+      }
+      return _results;
+    }).call(this);
+    pi_list[0] || (pi_list[0] = pi);
+    i = pi_list.indexOf(void 0);
+    if (~i) {
+      pi_list.splice(i);
     }
-    return this["default"]();
+    if (pi_list.length === 0) {
+      pi_list.push(this["default"]());
+    }
+    return pi_list;
   };
 
   PluginFilesMap.prototype._lookupPair = function(fmt, ext) {
     return this.db[[fmt, ext]] || this.db[[fmt, '*']] || this.db[['*', ext]];
-  };
-
-  PluginFilesMap.prototype.asPluginPipeline = function(pluginList, ext) {
-    return new PipelinePlugin(pluginList, ext);
   };
 
   return PluginFilesMap;
@@ -236,14 +215,14 @@ PluginDirsMap = (function(_super) {
     }
   };
 
-  PluginDirsMap.prototype._findPluginForExt = function(ext, entry) {
+  PluginDirsMap.prototype._findPluginListForExt = function(ext, entry) {
     if (ext.length === 0) {
-      return this.db[''];
+      return [this.db['']];
     }
     if (ext.length > 1) {
       console.warn("Multiple extensions on directories are undefined. (re: " + entry.srcRelPath + ")");
     }
-    return this.db[ext[0]] || this["default"]();
+    return [this.db[ext[0]] || this["default"]()];
   };
 
   return PluginDirsMap;
@@ -317,9 +296,9 @@ PluginCompositeMap = (function() {
     return this;
   };
 
-  PluginCompositeMap.prototype.addPluginAt = function(keys, pi) {
-    this.dirsMap.addPluginAt(keys, pi);
-    this.filesMap.addPluginAt(keys, pi);
+  PluginCompositeMap.prototype.addPluginAt = function(key, pi) {
+    this.dirsMap.addPluginAt(key, pi);
+    this.filesMap.addPluginAt(key, pi);
     return this;
   };
 

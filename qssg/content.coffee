@@ -29,10 +29,19 @@ class ContentBaseNode
     comp.addItem(key, contentItem)
     return comp
 
+  touch: (arg=true)->
+    if arg is 0
+      delete @mtime
+    else if arg is true
+      @mtime = new Date()
+    else
+      arg = Math.max(@mtime||0, arg||0)
+      @mtime = new Date(arg)
+    return @mtime
 
 class ContentItem extends ContentBaseNode
   kind: 'item'
-  constructor: (container, @key, @entry)->
+  constructor: (container, @key)->
     @init(container)
 
   initCtx: (ctx_next)-> ctx_next
@@ -80,7 +89,7 @@ class ContentRoot extends ContentComposite
 
 class ContentTree extends ContentBaseNode
   kind: 'tree'
-  constructor: (container, @key, @entry)->
+  constructor: (container, @key)->
     @items = {}
     @init(container)
 
@@ -92,6 +101,7 @@ class ContentTree extends ContentBaseNode
       item = curItem.compositeWith(key, item, @)
     @items[key] = item
     return item
+  getItem: (key)-> @items[key]
 
   visit: (visitor, keyPath=[])->
     keyPath = keyPath.concat([@key])
@@ -113,12 +123,12 @@ class CtxTree extends ContentTree
     if not ctx_parent?
       return {}
 
-    ctx_next = ctx_parent[@entry.name0]
+    ctx_next = ctx_parent[@key]
     ctx = Object.create ctx_next||null,
       ctx_next:value:ctx_next
-    return ctx_parent[@entry.name0] = ctx
+    return ctx_parent[@key] = ctx
 
-  adaptMatchKind: (matchKind, entry)-> 'context'
+  adaptMatchKind: (matchKind)-> 'context'
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -131,24 +141,28 @@ class ContentCollectionMixin
     Object.create ctx_next||null,
       ctx_next:value:ctx_next
 
-  newContentEx: (container, key, entry)->
-    new @.ContentItem(container, key, entry)
-  newContent: (key, entry)->
-    @newContentEx(@, key, entry)
-  addContent: (key, entry)->
-    @addItem key, @newContentEx(@, key, entry)
+  newContentEx: (container, key)->
+    new @.ContentItem(container, key)
+  newContent: (key)->
+    @newContentEx(@, key)
+  addContent: (key)->
+    @addItem key, @newContentEx(@, key)
+  getContent: (key)->
+    if not (item = @getItem?(key))?
+      item = @addContent(key)
+    return item
 
-  newTreeEx: (container, key, entry)->
-    new @.ContentTree(container, key, entry)
-  newTree: (key, entry)->
-    @newTreeEx(@, key, entry)
-  addTree: (key, entry)->
-    @addItem key, @newTreeEx(@, key, entry)
+  newTreeEx: (container, key)->
+    new @.ContentTree(container, key)
+  newTree: (key)->
+    @newTreeEx(@, key)
+  addTree: (key)->
+    @addItem key, @newTreeEx(@, key)
 
-  newCtxTreeEx: (container, key, entry)->
-    new @.CtxTree(container, key, entry)
-  newCtxTree: (key, entry)->
-    @newCtxTreeEx(@, key, entry)
+  newCtxTreeEx: (container, key)->
+    new @.CtxTree(container, key)
+  newCtxTree: (key)->
+    @newCtxTreeEx(@, key)
 
   @mixInto = (tgtClass)->
     tgt = tgtClass.prototype || tgtClass
