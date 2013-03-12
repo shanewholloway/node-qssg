@@ -8,6 +8,22 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
 
+stableSort = (list, options={})->
+  keyFn = options.key or (e)->e
+  res = [].map.call list, (e,i)-> [keyFn(e), i, e]
+  res.sort (a,b)->
+    return 1 if a[0]>b[0]
+    return -1 if a[0]<b[0]
+    return a[1]-b[1]
+  tgt = if options.inplace then list else res
+  tgt.length = res.length
+  for e,i in res
+    if e is undefined
+      delete tgt[i]
+    else tgt[i]=e[2]
+  return tgt
+
+
 # `functionList()` creates a new function list with an `invoke()` method that
 # will call each function in the list with the supplied arguments. Also
 # provides function-like methods of `bind()`, `call()` and `apply()` to provide
@@ -52,6 +68,17 @@ functionList = do ->
   create.once = (self=[], error)->
     init self, methods,
       invoke: -> invokeEach(self.splice(0), arguments, error); return @
+
+  create.ordered = (self=[], error)->
+    init self, methods,
+      add: (w, fn)->
+        if typeof w is 'function'
+          fn = w; w = undefined
+        else if w? then fn.w = w
+        self.push fn
+      sort: -> stableSort self, inplace:true, key:(e)-> e.w
+      invoke: ->
+        invokeEach(self.sort(), arguments, error); return @
 
   return create
 exports.functionList = functionList
