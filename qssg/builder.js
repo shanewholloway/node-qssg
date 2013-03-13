@@ -19,13 +19,12 @@ SiteBuilder = (function() {
   }
 
   SiteBuilder.prototype.build = function(vars, doneBuildFn) {
-    var dirTasks, fnList, logStarted, logUnchanged, rootOutput, rootVars, tasks, tidUpdate, trackerMap,
+    var dirTasks, fsTasks, logStarted, logUnchanged, rootOutput, rootVars, tasks, tidUpdate, trackerMap,
       _this = this;
     if (typeof vars === 'function') {
       doneBuildFn = vars;
       vars = null;
     }
-    console.log('building');
     rootOutput = Object.create(null, {
       rootPath: {
         value: this.rootPath,
@@ -38,15 +37,15 @@ SiteBuilder = (function() {
       }
     });
     trackerMap = {};
-    fnList = [];
+    fsTasks = qutil.invokeList.ordered();
     dirTasks = qutil.createTaskTracker(function() {
-      _this.fsTaskQueue.extend(fnList);
-      return fnList = null;
+      _this.fsTaskQueue.extend(fsTasks.sort());
+      return fsTasks = null;
     });
-    tasks = qutil.createTaskTracker(function() {
+    tasks = qutil.createTaskTracker(qutil.debounce(100, function() {
       clearInterval(tidUpdate);
       return doneBuildFn();
-    });
+    }));
     tidUpdate = setInterval(this.logTasksUpdate.bind(this, tasks, trackerMap), this.msTasksUpdate || 2000);
     logStarted = this.logStarted.bind(this);
     logUnchanged = this.logUnchanged.bind(this);
@@ -57,11 +56,7 @@ SiteBuilder = (function() {
       if (vkind === 'tree') {
         _this.fs.makeDirs(fullPath, dirTasks());
       }
-      if (true || (citem.render == null)) {
-        fnList.push(function(taskDone) {
-          process.nextTick(tasks());
-          return taskDone();
-        });
+      if (citem.render == null) {
         return;
       }
       output = Object.create(rootOutput, {
@@ -85,7 +80,7 @@ SiteBuilder = (function() {
           enumerable: true
         }
       });
-      fnList.push(function(taskDone) {
+      fsTasks.push(function(taskDone) {
         return _this.fs.stat(output.fullPath, taskDone.wrap(function(err, stat) {
           var renderAnswer;
           if (stat != null) {
@@ -140,11 +135,7 @@ SiteBuilder = (function() {
     };
   };
 
-  SiteBuilder.prototype.logStarted = function(rx) {
-    var paths;
-    paths = this.logPathsFor(rx);
-    console.error("start['" + paths.src + "'] -- '" + paths.dst + "'");
-  };
+  SiteBuilder.prototype.logStarted = function(rx) {};
 
   SiteBuilder.prototype.logError = function(err, rx) {
     var paths;

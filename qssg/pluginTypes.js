@@ -92,6 +92,33 @@ CommonPluginBase = (function() {
     callback(new Error(err));
   };
 
+  CommonPluginBase.prototype.streamAnswer = function(stream, answerFn) {
+    var dataList, sendAnswer;
+    sendAnswer = function(err) {
+      var ans;
+      sendAnswer = null;
+      if (err != null) {
+        return answerFn(err);
+      }
+      try {
+        ans = dataList.join('');
+      } catch (err) {
+        return answerFn(err);
+      }
+      return answerFn(null, ans);
+    };
+    dataList = [];
+    stream.on('data', function(data) {
+      return dataList.push(data);
+    });
+    stream.on('error', function(err) {
+      return typeof sendAnswer === "function" ? sendAnswer(err) : void 0;
+    });
+    stream.on('end', function() {
+      return typeof sendAnswer === "function" ? sendAnswer() : void 0;
+    });
+  };
+
   CommonPluginBase.prototype.adapt = function(entry) {
     return this;
   };
@@ -216,7 +243,7 @@ RenderedPlugin = (function(_super) {
     if (this.compile == null) {
       return this.notImplemented('render', entry, callback);
     }
-    return this.compile(entry, source, function(err, renderFn) {
+    return this.compile(entry, source, vars, function(err, renderFn) {
       return renderFn(vars, callback);
     });
   };
@@ -247,7 +274,7 @@ CompiledPlugin = (function(_super) {
     if (this.compile == null) {
       return this.notImplemented('compile', entry, callback);
     }
-    return this.compile(entry, source, callback);
+    return this.compile(entry, source, vars, callback);
   };
 
   return CompiledPlugin;

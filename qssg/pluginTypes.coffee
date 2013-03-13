@@ -51,6 +51,20 @@ class CommonPluginBase
     err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{entry.srcRelPath}'}"
     callback(new Error(err)); return
 
+  streamAnswer: (stream, answerFn)->
+    sendAnswer = (err)->
+      sendAnswer = null
+      return answerFn(err) if err?
+      try ans = dataList.join('')
+      catch err then return answerFn(err)
+      answerFn null, ans
+
+    dataList = []
+    stream.on 'data', (data)-> dataList.push(data)
+    stream.on 'error', (err)-> sendAnswer?(err)
+    stream.on 'end', -> sendAnswer?()
+    return
+
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   adapt: (entry)-> @
@@ -115,7 +129,7 @@ class RenderedPlugin extends BasicPlugin
   render: (entry, source, vars, callback)->
     if not @compile?
       return @notImplemented('render', entry, callback)
-    @compile entry, source, (err, renderFn)->
+    @compile entry, source, vars, (err, renderFn)->
       renderFn(vars, callback)
 
 pluginTypes.rendered = RenderedPlugin
@@ -129,7 +143,7 @@ class CompiledPlugin extends BasicPlugin
   context: (entry, source, vars, callback)->
     if not @compile?
       return @notImplemented('compile', entry, callback)
-    @compile(entry, source, callback)
+    @compile(entry, source, vars, callback)
 
 pluginTypes.compiled = CompiledPlugin
 exports.CompiledPlugin = CompiledPlugin

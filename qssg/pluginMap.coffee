@@ -16,41 +16,38 @@ class PluginBaseMap
   inspect: -> "«#{@constructor.name}»"
   toString: -> @inspect()
 
-  invalidate: ->
-    @_cache = {}
-    return @
-  reset: ->
-    @db = {}; return @invalidate()
+  countDbKeys: ->
+    i=0
+    i++ for k of @db
+    return i
+
+  invalidate: -> @_cache = {}; return @
+  reset: -> @db = {}; return @invalidate()
   clone: ->
     self = Object.create @, db:value:Object.create(@db)
     return self.invalidate()
-  freeze: (deep=true)->
-    @exportPluginsTo(hash={}, deep)
+  freeze: ->
+    hash = @exportPlugins()
     return @reset().merge(hash)
 
-  exportPluginsTo: (tgt, deep)->
-    db = @db
-    for key, pi of db
-      if deep or Object.hasOwnProperty(db, key)
-        tgt[key] = pi
-    return tgt
+  exportPlugins: (hash={})->
+    for key, pi of @db
+      hash[key] = pi
+    return hash
   merge: (plugins)->
     if plugins is true
       return @freeze()
     else if plugins is false
       return @reset()
     else
-      if plugins.exportPluginsTo?
-        plugins.exportPluginsTo hash={}
-      else hash = plugins
-      @addPluginHash(hash)
+      @addPluginHash plugins.exportPlugins?() or plugins
     return @invalidate()
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   addPluginHash: (hash, deep)->
     for key,pi of hash
-      if deep or Object.hasOwnProperty(hash, key)
+      if deep or hash.hasOwnProperty(key)
         if @acceptPlugin(key, pi)
           @db[key] = pi
     return @invalidate()
@@ -60,9 +57,11 @@ class PluginBaseMap
     return @invalidate()
 
   acceptPlugin: (key, pi)->
-    if key[0] is '&'
-      return pi.isKindPlugin
-    else return pi.isFilePlugin
+    ans = do ->
+      if key[0] is '&'
+        return pi.isKindPlugin
+      else return pi.isFilePlugin
+    return ans
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

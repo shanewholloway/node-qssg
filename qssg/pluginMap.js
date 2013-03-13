@@ -21,6 +21,15 @@ PluginBaseMap = (function() {
     return this.inspect();
   };
 
+  PluginBaseMap.prototype.countDbKeys = function() {
+    var i, k;
+    i = 0;
+    for (k in this.db) {
+      i++;
+    }
+    return i;
+  };
+
   PluginBaseMap.prototype.invalidate = function() {
     this._cache = {};
     return this;
@@ -41,40 +50,32 @@ PluginBaseMap = (function() {
     return self.invalidate();
   };
 
-  PluginBaseMap.prototype.freeze = function(deep) {
+  PluginBaseMap.prototype.freeze = function() {
     var hash;
-    if (deep == null) {
-      deep = true;
-    }
-    this.exportPluginsTo(hash = {}, deep);
+    hash = this.exportPlugins();
     return this.reset().merge(hash);
   };
 
-  PluginBaseMap.prototype.exportPluginsTo = function(tgt, deep) {
-    var db, key, pi;
-    db = this.db;
-    for (key in db) {
-      pi = db[key];
-      if (deep || Object.hasOwnProperty(db, key)) {
-        tgt[key] = pi;
-      }
+  PluginBaseMap.prototype.exportPlugins = function(hash) {
+    var key, pi, _ref;
+    if (hash == null) {
+      hash = {};
     }
-    return tgt;
+    _ref = this.db;
+    for (key in _ref) {
+      pi = _ref[key];
+      hash[key] = pi;
+    }
+    return hash;
   };
 
   PluginBaseMap.prototype.merge = function(plugins) {
-    var hash;
     if (plugins === true) {
       return this.freeze();
     } else if (plugins === false) {
       return this.reset();
     } else {
-      if (plugins.exportPluginsTo != null) {
-        plugins.exportPluginsTo(hash = {});
-      } else {
-        hash = plugins;
-      }
-      this.addPluginHash(hash);
+      this.addPluginHash((typeof plugins.exportPlugins === "function" ? plugins.exportPlugins() : void 0) || plugins);
     }
     return this.invalidate();
   };
@@ -83,7 +84,7 @@ PluginBaseMap = (function() {
     var key, pi;
     for (key in hash) {
       pi = hash[key];
-      if (deep || Object.hasOwnProperty(hash, key)) {
+      if (deep || hash.hasOwnProperty(key)) {
         if (this.acceptPlugin(key, pi)) {
           this.db[key] = pi;
         }
@@ -100,11 +101,15 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.acceptPlugin = function(key, pi) {
-    if (key[0] === '&') {
-      return pi.isKindPlugin;
-    } else {
-      return pi.isFilePlugin;
-    }
+    var ans;
+    ans = (function() {
+      if (key[0] === '&') {
+        return pi.isKindPlugin;
+      } else {
+        return pi.isFilePlugin;
+      }
+    })();
+    return ans;
   };
 
   PluginBaseMap.prototype.findPluginListForExt = function(ext, entry) {

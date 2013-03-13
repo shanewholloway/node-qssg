@@ -21,18 +21,17 @@ class SiteBuilder
     if typeof vars is 'function'
       doneBuildFn = vars; vars = null
 
-    console.log 'building'
     rootOutput = Object.create null,
       rootPath: value: @rootPath, enumerable: true
     rootVars = Object.create vars||null,
       output: value: rootOutput
 
     trackerMap = {}
-
-    fnList = []
+    fsTasks = qutil.invokeList.ordered()
     dirTasks = qutil.createTaskTracker =>
-      @fsTaskQueue.extend fnList; fnList = null
-    tasks = qutil.createTaskTracker -> clearInterval(tidUpdate); doneBuildFn()
+      @fsTaskQueue.extend fsTasks.sort(); fsTasks = null
+    tasks = qutil.createTaskTracker qutil.debounce 100, ->
+      clearInterval(tidUpdate); doneBuildFn()
     tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
 
     logStarted = @logStarted.bind(@)
@@ -43,10 +42,7 @@ class SiteBuilder
       if vkind is 'tree'
         @fs.makeDirs fullPath, dirTasks()
 
-      if true or not citem.render?
-        fnList.push (taskDone)=>
-          process.nextTick tasks()
-          taskDone()
+      if not citem.render?
         return
 
       output = Object.create rootOutput,
@@ -58,7 +54,7 @@ class SiteBuilder
       vars = Object.create rootVars,
         output: value: output, enumerable: true
 
-      fnList.push (taskDone)=>
+      fsTasks.push (taskDone)=>
         @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
           if stat?
             output.mtime = stat.mtime
@@ -94,8 +90,8 @@ class SiteBuilder
     dst: path.relative @cwd, rx.relPath
     src: path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
   logStarted: (rx)->
-    paths = @logPathsFor(rx)
-    console.error "start['#{paths.src}'] -- '#{paths.dst}'"
+    #paths = @logPathsFor(rx)
+    #console.error "start['#{paths.src}'] -- '#{paths.dst}'"
     return
   logError: (err, rx)->
     paths = @logPathsFor(rx)

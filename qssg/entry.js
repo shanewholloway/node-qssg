@@ -169,7 +169,7 @@ MatchEntry = (function() {
   MatchEntry.prototype.newCtxTree = function(key) {
     var tree;
     if (key == null) {
-      key = this.name0;
+      key = this.name;
     }
     tree = this.baseTree.newTree(key);
     return this._setContent(tree, tree);
@@ -178,7 +178,7 @@ MatchEntry = (function() {
   MatchEntry.prototype.addContentTree = function(key) {
     var tree;
     if (key == null) {
-      key = this.name0;
+      key = this.name;
     }
     tree = this.baseTree.addTree(key);
     return this._setContent(tree, tree);
@@ -187,7 +187,7 @@ MatchEntry = (function() {
   MatchEntry.prototype.addComposite = function(key, childKey) {
     var citem, tree;
     if (key == null) {
-      key = this.name0;
+      key = this.name;
     }
     tree = this.baseTree.newTree(key);
     citem = tree.getContent(childKey || key);
@@ -197,7 +197,7 @@ MatchEntry = (function() {
 
   MatchEntry.prototype.getContent = function(key) {
     if (key == null) {
-      key = this.name0;
+      key = this.name;
     }
     if (this.content != null) {
       return this.content;
@@ -223,23 +223,12 @@ MatchEntry = (function() {
   MatchEntry.prototype.fs = require('fs');
 
   MatchEntry.prototype.readStream = function(options) {
-    var src,
-      _this = this;
-    if (this._overlaySource != null) {
-      src = new stream.Stream();
-      process.nextTick(function() {
-        src.emit('data', _this._overlaySource);
-        src.emit('end');
-        return src.emit('close');
-      });
-      return src;
-    } else if (this.isFile) {
+    if (this.isFile) {
       return this.fs.createReadStream(this.src.path, options);
     }
   };
 
   MatchEntry.prototype.read = function(encoding, callback) {
-    var _this = this;
     if (encoding == null) {
       encoding = 'utf-8';
     }
@@ -247,11 +236,7 @@ MatchEntry = (function() {
       callback = encoding;
       encoding = 'utf-8';
     }
-    if (this._overlaySource != null) {
-      process.nextTick(function() {
-        return callback(null, _this._overlaySource);
-      });
-    } else if (this.isFile) {
+    if (this.isFile) {
       this.fs.readFile(this.src.path, encoding, callback);
     }
   };
@@ -260,62 +245,13 @@ MatchEntry = (function() {
     if (encoding == null) {
       encoding = 'utf-8';
     }
-    if (this._overlaySource != null) {
-      return this._overlaySource;
-    } else if (this.isFile) {
+    if (this.isFile) {
       return this.fs.readFileSync(this.src.path, encoding);
     }
   };
 
   MatchEntry.prototype.loadModule = function() {
-    if (this._overlaySource != null) {
-      throw new Error("`MatchEntry::loadModule()` is not currently support in overlay mode");
-    }
     return require(this.src.path);
-  };
-
-  MatchEntry.prototype.overlaySource = function(source, callback) {
-    var self;
-    if (source == null) {
-      return this;
-    }
-    if (source.pipe != null) {
-      return this._overlayStream(source, callback);
-    }
-    self = Object.create(this, {
-      overlaysEntry: {
-        value: this
-      },
-      _source: {
-        value: source
-      }
-    });
-    process.nextTick(function() {
-      return callback(null, self, source);
-    });
-  };
-
-  MatchEntry.prototype._overlayStream = function(source, callback) {
-    var dataList, sendAnswer,
-      _this = this;
-    dataList = [];
-    source.on('data', function(data) {
-      return dataList.push(data);
-    });
-    source.on('error', function(err) {
-      return typeof sendAnswer === "function" ? sendAnswer(err) : void 0;
-    });
-    source.on('end', function() {
-      return typeof sendAnswer === "function" ? sendAnswer() : void 0;
-    });
-    sendAnswer = function(err) {
-      sendAnswer = null;
-      if (err != null) {
-        return callback(err);
-      } else {
-        return _this.overlaySource(dataList.join(''), callback);
-      }
-    };
   };
 
   return MatchEntry;

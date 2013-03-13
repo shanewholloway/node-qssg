@@ -77,20 +77,20 @@ class MatchEntry
         value: contentTree
     return content
 
-  newCtxTree: (key=@name0)->
+  newCtxTree: (key=@name)->
     tree = @baseTree.newTree(key)
     return @_setContent tree, tree
-  addContentTree: (key=@name0)->
+  addContentTree: (key=@name)->
     tree = @baseTree.addTree(key)
     return @_setContent tree, tree
 
-  addComposite: (key=@name0, childKey)->
+  addComposite: (key=@name, childKey)->
     tree = @baseTree.newTree(key)
     citem = tree.getContent(childKey||key)
     @baseTree.addItem(key, citem)
     return @_setContent citem, tree
 
-  getContent: (key=@name0)->
+  getContent: (key=@name)->
     return @content if @content?
     return @_setContent @baseTree.getContent(key)
 
@@ -104,54 +104,19 @@ class MatchEntry
 
   fs: require('fs')
   readStream: (options)->
-    if @_overlaySource?
-      src = new stream.Stream()
-      process.nextTick =>
-        src.emit('data', @_overlaySource)
-        src.emit('end'); src.emit('close')
-      return src
-    else if @isFile
+    if @isFile
       @fs.createReadStream(@src.path, options)
   read: (encoding='utf-8', callback)->
     if typeof encoding is 'function'
       callback = encoding; encoding = 'utf-8'
-    if @_overlaySource?
-      process.nextTick => callback(null, @_overlaySource)
-    else if @isFile
+    if @isFile
       @fs.readFile(@src.path, encoding, callback)
     return
   readSync: (encoding='utf-8')->
-    if @_overlaySource?
-      return @_overlaySource
-    else if @isFile
+    if @isFile
       return @fs.readFileSync(@src.path, encoding)
   loadModule: ->
-    if @_overlaySource?
-      throw new Error("`MatchEntry::loadModule()` is not currently support in overlay mode")
     require(@src.path)
-
-  overlaySource: (source, callback)->
-    return @ if not source?
-    return @_overlayStream(source, callback) if source.pipe?
-
-    self = Object.create @,
-      overlaysEntry:value:@
-      _source:value:source
-
-    process.nextTick -> callback(null, self, source)
-    return
-
-  _overlayStream: (source, callback)->
-    dataList = []
-    source.on 'data', (data)-> dataList.push(data)
-    source.on 'error', (err)-> sendAnswer?(err)
-    source.on 'end', -> sendAnswer?()
-
-    sendAnswer = (err)=>
-      sendAnswer = null
-      if err? then callback(err)
-      else @overlaySource(dataList.join(''), callback)
-    return
 
 exports.MatchEntry = MatchEntry
 
