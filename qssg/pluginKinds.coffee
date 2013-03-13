@@ -11,7 +11,77 @@ qutil = require('./util')
 
 exports.pluginTypes = pluginTypes = {}
 
-class KindBasePlugin
+class PluginCompositeTasks
+  bindTaskFn: (tasks, ns)->
+    return (vars, answerFn)=>
+      if ns?
+        vars = Object.create(vars)
+        vars[k]=v for k,v of ns
+      q = tasks.slice()
+      stepFn = (err, src)->
+        if not err? and (fn = q.shift())?
+          fn(src, vars, stepFn)
+        else answerFn(err, src)
+      @entry.read(stepFn)
+
+
+  bindRenderTasks: (tasks=[])->
+    for pi in @plugins
+      if pi.render?
+        tasks.push pi.render.bind(pi, @entry)
+    return tasks
+  bindRenderFn: (ns)->
+    @bindTaskFn @bindRenderTasks(), ns
+  bindRenderContent: ->
+    citem = @entry.getContent()
+    @bindRenderTasks citem.bindRender(@entry)
+    return citem
+
+  bindTemplateFn: (ns)->
+    renderFn = @bindRenderFn(ns)
+    tmplFn = (source, vars, answerFn)=>
+      vars = Object.create vars, content:value:source
+      renderFn(vars, answerFn)
+    return tmplFn
+  addTemplate: (tmplFn, order=@templateOrder)->
+    if not tmplFn?
+      tmplFn = @bindTemplateFn(null)
+    @entry.getContent().addTemplate(tmplFn, order)
+  templateOrder: 0
+
+
+  bindContextTasks: (tasks=[])->
+    for pi in @plugins
+      if pi.context?
+        tasks.push pi.context.bind(pi, @entry)
+    return tasks
+  bindContextFn: (ns)->
+    @bindTaskFn @bindContextTasks(), ns
+
+  setContext: (vars={}, callback)->
+    if typeof vars is 'function'
+      callback = vars; vars = {}
+    ctxFn = @bindContextFn()
+    ctxFn vars, (err, value)=>
+      @entry.setCtxValue(value) if not err?
+      callback?(err, value)
+
+  setMetadata: (vars={}, callback)->
+    if typeof vars is 'function'
+      callback = vars; vars = {}
+    ctxFn = @bindContextFn()
+    ctxFn vars, (err, metadata)=>
+      if not err? and metadata?
+        citem = @entry.getContent()
+        for k,v of metadata
+          citem.meta[k]=v
+      callback?(err, metadata)
+
+exports.PluginCompositeTasks = PluginCompositeTasks
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class KindBasePlugin extends PluginCompositeTasks
   isKindPlugin: true
 
   kinds: ''
@@ -54,72 +124,6 @@ class KindBasePlugin
   simpleDir: (buildTasks, done)-> @notImplemented('simpleDir', done)
   compositeDir: (buildTasks, done)-> @notImplemented('compositeDir', done)
   contextDir: (buildTasks, done)-> @notImplemented('contextDir', done)
-
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-  bindTaskFn: (tasks, ns)->
-    return (vars, answerFn)=>
-      if ns?
-        vars = Object.create(vars)
-        vars[k]=v for k,v of ns
-      q = tasks.slice()
-      stepFn = (err, src)->
-        if not err? and (fn = q.shift())?
-          fn(src, vars, stepFn)
-        else answerFn(err, src)
-      @entry.read(stepFn)
-
-
-  bindRenderTasks: (tasks=[])->
-    for pi in @plugins
-      if pi.render?
-        tasks.push pi.render.bind(pi, @entry)
-    return tasks
-  bindRenderFn: (ns)->
-    @bindTaskFn @bindRenderTasks(), ns
-  bindRenderContent: ->
-    citem = @entry.getContent()
-    @bindRenderTasks citem.bindRender(@entry)
-    return citem
-
-  bindTemplate: ->
-    renderFn = @bindRenderFn(null)
-    @addTemplate (source, vars, answerFn)=>
-      vars = Object.create vars, content:value:source
-      renderFn(vars, answerFn)
-  addTemplate: (tmplFn, order=@templateOrder)->
-    @entry.getContent().addTemplate(tmplFn, order)
-  templateOrder: 0
-
-
-  bindContextTasks: (tasks=[])->
-    for pi in @plugins
-      if pi.context?
-        tasks.push pi.context.bind(pi, @entry)
-    return tasks
-  bindContextFn: (ns)->
-    @bindTaskFn @bindContextTasks(), ns
-
-  setContext: (vars={}, callback)->
-    if typeof vars is 'function'
-      callback = vars; vars = undefined
-    vars = Object.create vars||null, ctx:value:@entry.ctx
-    ctxFn = @bindContextFn()
-    ctxFn vars, (err, value)=>
-      @entry.setCtxValue(value) if not err?
-      callback?(err, value)
-
-  setMetadata: (vars={}, callback)->
-    if typeof vars is 'function'
-      callback = vars; vars = undefined
-    vars = Object.create vars||null, ctx:value:@entry.ctx
-    ctxFn = @bindContextFn()
-    ctxFn vars, (err, metadata)=>
-      if not err? and metadata?
-        citem = @entry.getContent()
-        for k,v of metadata
-          citem.meta[k]=v
-      callback?(err, metadata)
 
 exports.KindBasePlugin = KindBasePlugin
 
@@ -164,11 +168,11 @@ class TemplatePlugin extends KindBasePlugin
 
   composite: (buildTasks, done)->
     buildTasks.add @buildOrder, =>
-      @bindTemplate()
+      @addTemplate()
     done()
   context: (buildTasks, done)->
     buildTasks.add @buildOrder, =>
-      @bindTemplate()
+      @entry.setCtxValue @bindTemplateFn()
     done()
 
 exports.TemplatePlugin = TemplatePlugin

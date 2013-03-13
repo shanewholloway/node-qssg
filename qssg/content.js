@@ -50,18 +50,25 @@ Renderable = (function() {
     return tmplFn(vars, answerFn);
   };
 
+  Renderable.prototype.extendVars = function(vars) {
+    if (vars == null) {
+      vars = {};
+    }
+    return Object.create(vars, {
+      ctx: {
+        value: this.ctx
+      },
+      meta: {
+        value: this.meta
+      }
+    });
+  };
+
   Renderable.prototype.renderEntryFn = function(entry, vars, answerFn) {
     var stepFn, _ref;
     try {
       if (this._renderTasks.length > 0) {
-        vars = Object.create(vars, {
-          ctx: {
-            value: this.ctx
-          },
-          meta: {
-            value: this.meta
-          }
-        });
+        vars = this.extendVars(vars);
         stepFn = this._renderTasks.iter(function(renderFn, err, src) {
           if ((err == null) && renderFn !== void 0) {
             return renderFn(src, vars, stepFn);
@@ -113,6 +120,19 @@ ContentBaseNode = (function(_super) {
 
   ContentBaseNode.prototype.initCtx = function(ctx_next) {
     return ctx_next || {};
+  };
+
+  ContentBaseNode.prototype.pushCtx = function(ctx_next) {
+    var tmpl;
+    tmpl = (ctx_next != null) && Object.create(ctx_next.tmpl) || {};
+    return Object.create(ctx_next || null, {
+      tmpl: {
+        value: tmpl
+      },
+      ctx_next: {
+        value: ctx_next
+      }
+    });
   };
 
   ContentBaseNode.prototype.visit = function(visitor, keyPath) {
@@ -313,17 +333,13 @@ CtxTree = (function(_super) {
   CtxTree.prototype.isCtxTree = true;
 
   CtxTree.prototype.initCtx = function(ctx_parent) {
-    var ctx, ctx_next;
-    if (ctx_parent == null) {
+    var ctx;
+    if (ctx_parent != null) {
+      ctx = this.pushCtx(ctx_parent[this.key]);
+      return ctx_parent[this.key] = ctx;
+    } else {
       return {};
     }
-    ctx_next = ctx_parent[this.key];
-    ctx = Object.create(ctx_next || null, {
-      ctx_next: {
-        value: ctx_next
-      }
-    });
-    return ctx_parent[this.key] = ctx;
   };
 
   CtxTree.prototype.adaptMatchKind = function(matchKind) {
@@ -345,11 +361,7 @@ ContentCollectionMixin = (function() {
   ContentCollectionMixin.prototype.CtxTree = CtxTree;
 
   ContentCollectionMixin.prototype.initCtx = function(ctx_next) {
-    return Object.create(ctx_next || null, {
-      ctx_next: {
-        value: ctx_next
-      }
-    });
+    return this.pushCtx(ctx_next);
   };
 
   ContentCollectionMixin.prototype.newContentEx = function(container, key) {

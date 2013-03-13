@@ -56,18 +56,11 @@ class CommonPluginBase
   adapt: (entry)-> @
   rename: (entry)-> entry
 
-  render: (entry, source, vars, callback)->
-    @notImplemented('render', entry, callback)
-  context: (entry, source, vars, callback)->
-    @notImplemented('context', entry, callback)
-
-  template: (entry, source, vars, callback)->
-    @context entry, source, vars, (err, renderSrcFn)=>
-      if not err?
-        if typeof renderSrcFn is 'function'
-          return callback(null, renderSrcFn)
-        err = new Error("#{@} failed to create template function from #{entry}")
-      return callback(err)
+  if 0
+    render: (entry, source, vars, callback)->
+      @notImplemented('render', entry, callback)
+    context: (entry, source, vars, callback)->
+      @notImplemented('context', entry, callback)
 
 exports.CommonPluginBase = CommonPluginBase
 
@@ -84,53 +77,10 @@ class BasicPlugin extends CommonPluginBase
   registerPluginOn: (pluginMap)->
     pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
 
-  render: (entry, source, vars, callback)->
-    callback(null, source)
-  context: (entry, source, vars, callback)->
-    callback(null, source)
-
 exports.BasicPlugin = BasicPlugin
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-class PipelinePlugin extends BasicPlugin
-  constructor: (@list)->
-
-  rename: (entry)->
-    for pi in @list
-      entry = pi.rename(entry)
-    return entry
-
-  adapt: (entry)->
-    self = Object.create(@)
-    self.list = @list.map (pi)-> pi.adapt(entry)
-    return self
-
-  iterEach: (callback, eachFn)->
-    pi_list = @list.slice()
-    return (err, args...)->
-      return callback(err) if err?
-      if (pi = pi_list.shift())?
-        process.nextTick ->
-          eachFn(pi, args...)
-      else callback(arguments...)
-
-  render: (entry, source, vars, callback)->
-    stepFn = @iterEach callback, (pi, src)->
-      pi.render(entry, src, vars, stepFn)
-    stepFn(null, source)
-
-  context: (entry, source, vars, callback)->
-    stepFn = @iterEach callback, (pi, src)->
-      pi.context(entry, src, vars, stepFn)
-    stepFn(null, source)
-
-exports.PipelinePlugin = PipelinePlugin
-pluginTypes.pipeline = PipelinePlugin
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 class StaticPlugin extends CommonPluginBase
   init: (options...)->
@@ -152,13 +102,6 @@ class StaticPlugin extends CommonPluginBase
       else
         console.warn "Ignoreing invalid static extension #{ext}"
 
-  renderEx0: (entry, vars, callback)->
-    entry.touch(false) # update to src mtime
-    callback(null, entry.readStream())
-  render: (entry, source, vars, callback)->
-    callback(null, source)
-  context: (entry, source, vars, callback)->
-    callback(null, source)
 pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
 

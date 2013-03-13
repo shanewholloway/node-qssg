@@ -33,10 +33,13 @@ class Renderable
     vars = Object.create vars, content:value:source
     tmplFn(vars, answerFn)
 
+  extendVars: (vars={})->
+    return Object.create vars, ctx:{value:@ctx}, meta:{value:@meta}
+
   renderEntryFn: (entry, vars, answerFn)->
     try
       if @_renderTasks.length > 0
-        vars = Object.create vars, ctx:{value:@ctx}, meta:{value:@meta}
+        vars = @extendVars(vars)
         stepFn = @_renderTasks.iter (renderFn, err, src)->
           if not err? and renderFn isnt undefined
             renderFn(src, vars, stepFn)
@@ -62,6 +65,11 @@ class ContentBaseNode extends Renderable
     @ctx = @initCtx(container?.ctx)
 
   initCtx: (ctx_next)-> ctx_next || {}
+  pushCtx: (ctx_next)->
+    tmpl = ctx_next? and Object.create(ctx_next.tmpl) or {}
+    return Object.create ctx_next||null,
+      tmpl:{value:tmpl}, ctx_next:{value:ctx_next}
+
   visit: (visitor, keyPath)->
     throw new Error("Subclass responsibility: #{@constructor.name}::visit()")
 
@@ -162,13 +170,10 @@ class CtxTree extends ContentTree
   kind: 'ctx_tree'
   isCtxTree: true
   initCtx: (ctx_parent)->
-    if not ctx_parent?
-      return {}
-
-    ctx_next = ctx_parent[@key]
-    ctx = Object.create ctx_next||null,
-      ctx_next:value:ctx_next
-    return ctx_parent[@key] = ctx
+    if ctx_parent?
+      ctx = @pushCtx(ctx_parent[@key])
+      return ctx_parent[@key] = ctx
+    else return {}
 
   adaptMatchKind: (matchKind)-> 'context'
 
@@ -179,9 +184,7 @@ class ContentCollectionMixin
   ContentTree: ContentTree
   CtxTree: CtxTree
 
-  initCtx: (ctx_next)->
-    Object.create ctx_next||null,
-      ctx_next:value:ctx_next
+  initCtx: (ctx_next)-> @pushCtx(ctx_next)
 
   newContentEx: (container, key)->
     new @.ContentItem(container, key)
