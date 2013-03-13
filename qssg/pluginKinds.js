@@ -228,34 +228,32 @@ KindBasePlugin = (function(_super) {
     return this[matchMethod].bind(this);
   };
 
-  KindBasePlugin.prototype.notImplemented = function(protocolMethod, done) {
-    var err;
-    err = "" + this + "::" + protocolMethod + "() not implemented for {entry: '" + this.entry.srcRelPath + "'}";
-    done(new Error(err));
+  KindBasePlugin.prototype.notImplemented = function(protocolMethod) {
+    throw new Error("" + this + "::" + protocolMethod + "() not implemented for {entry: '" + this.entry.srcRelPath + "'}");
   };
 
-  KindBasePlugin.prototype.simple = function(buildTasks, done) {
-    return this.notImplemented('simple', done);
+  KindBasePlugin.prototype.simple = function(buildTasks) {
+    return this.notImplemented('simple');
   };
 
-  KindBasePlugin.prototype.composite = function(buildTasks, done) {
-    return this.notImplemented('composite', done);
+  KindBasePlugin.prototype.composite = function(buildTasks) {
+    return this.notImplemented('composite');
   };
 
-  KindBasePlugin.prototype.context = function(buildTasks, done) {
-    return this.notImplemented('context', done);
+  KindBasePlugin.prototype.context = function(buildTasks) {
+    return this.notImplemented('context');
   };
 
-  KindBasePlugin.prototype.simpleDir = function(buildTasks, done) {
-    return this.notImplemented('simpleDir', done);
+  KindBasePlugin.prototype.simpleDir = function(buildTasks) {
+    return this.notImplemented('simpleDir');
   };
 
-  KindBasePlugin.prototype.compositeDir = function(buildTasks, done) {
-    return this.notImplemented('compositeDir', done);
+  KindBasePlugin.prototype.compositeDir = function(buildTasks) {
+    return this.notImplemented('compositeDir');
   };
 
-  KindBasePlugin.prototype.contextDir = function(buildTasks, done) {
-    return this.notImplemented('contextDir', done);
+  KindBasePlugin.prototype.contextDir = function(buildTasks) {
+    return this.notImplemented('contextDir');
   };
 
   return KindBasePlugin;
@@ -274,49 +272,43 @@ KindPlugin = (function(_super) {
 
   KindPlugin.prototype.buildOrder = 2;
 
-  KindPlugin.prototype.simple = function(buildTasks, done) {
-    this.bindRenderContent();
-    return done();
+  KindPlugin.prototype.simple = function(buildTasks) {
+    return this.bindRenderContent();
   };
 
-  KindPlugin.prototype.composite = function(buildTasks, done) {
-    this.bindRenderContent();
-    return done();
+  KindPlugin.prototype.composite = function(buildTasks) {
+    return this.bindRenderContent();
   };
 
-  KindPlugin.prototype.context = function(buildTasks, done) {
+  KindPlugin.prototype.context = function(buildTasks) {
     var _this = this;
-    buildTasks.add(this.buildOrder, function() {
-      return _this.setContext({}, done);
+    return buildTasks.add(this.buildOrder, function(taskFn) {
+      return _this.setContext({}, taskFn);
     });
-    return done();
   };
 
-  KindPlugin.prototype.simpleDir = function(buildTasks, done) {
+  KindPlugin.prototype.simpleDir = function(buildTasks) {
     var ctree;
     if (this.entry.ext.length) {
-      return this.compositeDir(this.entry, done);
+      return this.compositeDir(this.entry);
     }
     ctree = this.entry.addContentTree();
-    this.entry.walk();
-    return done();
+    return this.entry.walk();
   };
 
-  KindPlugin.prototype.compositeDir = function(buildTasks, done) {
+  KindPlugin.prototype.compositeDir = function(buildTasks) {
     var ctree;
     ctree = this.entry.addComposite();
-    this.entry.walk();
-    return done();
+    return this.entry.walk();
   };
 
-  KindPlugin.prototype.contextDir = function(buildTasks, done) {
+  KindPlugin.prototype.contextDir = function(buildTasks) {
     var ctree;
     if (this.entry.ext.length > 0) {
       console.warn('Context directories with extensions are not defined');
     }
     ctree = this.entry.newCtxTree();
-    this.entry.walk();
-    return done();
+    return this.entry.walk();
   };
 
   return KindPlugin;
@@ -339,20 +331,20 @@ TemplatePlugin = (function(_super) {
 
   TemplatePlugin.prototype.buildOrder = 5;
 
-  TemplatePlugin.prototype.composite = function(buildTasks, done) {
+  TemplatePlugin.prototype.composite = function(buildTasks) {
     var _this = this;
-    buildTasks.add(this.buildOrder, function() {
-      return _this.addTemplate();
+    return buildTasks.add(this.buildOrder, function(taskFn) {
+      _this.addTemplate();
+      return taskFn();
     });
-    return done();
   };
 
-  TemplatePlugin.prototype.context = function(buildTasks, done) {
+  TemplatePlugin.prototype.context = function(buildTasks) {
     var _this = this;
-    buildTasks.add(this.buildOrder, function() {
-      return _this.entry.setCtxValue(_this.bindTemplateFn());
+    return buildTasks.add(this.buildOrder, function() {
+      _this.entry.setCtxTemplate(_this.bindTemplateFn());
+      return taskFn();
     });
-    return done();
   };
 
   return TemplatePlugin;
@@ -373,20 +365,18 @@ MetadataPlugin = (function(_super) {
 
   MetadataPlugin.prototype.buildOrder = -1;
 
-  MetadataPlugin.prototype.composite = function(buildTasks, done) {
+  MetadataPlugin.prototype.composite = function(buildTasks) {
     var _this = this;
-    buildTasks.add(this.buildOrder, function() {
-      return _this.setMetadata();
+    return buildTasks.add(this.buildOrder, function(taskFn) {
+      return _this.setMetadata(taskFn);
     });
-    return done();
   };
 
-  MetadataPlugin.prototype.context = function(buildTasks, done) {
+  MetadataPlugin.prototype.context = function(buildTasks) {
     var _this = this;
-    buildTasks.add(this.buildOrder, function() {
-      return _this.setMetadata();
+    return buildTasks.add(this.buildOrder, function(taskFn) {
+      return _this.setMetadata(taskFn);
     });
-    return done();
   };
 
   return MetadataPlugin;

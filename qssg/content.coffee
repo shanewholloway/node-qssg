@@ -7,7 +7,7 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
-qutil = require('./util')
+{invokeList} = require('./util')
 
 class Renderable
   bindRender: (entry)->
@@ -15,7 +15,7 @@ class Renderable
     return @renderTasks()
   renderTasks: ->
     if not (tasks = @_renderTasks)?
-      tasks = qutil.fnList.ordered()
+      tasks = invokeList.ordered()
       @_renderTasks = tasks
     return tasks
   addTemplate: (tmplFn, order)->
@@ -23,7 +23,7 @@ class Renderable
       throw new Error("Content template must be a function")
     tasks = @renderTasks()
     if not tasks.tmpl?
-      tasks.tmpl = qutil.fnList.ordered()
+      tasks.tmpl = invokeList.ordered()
       tasks.add 1.0, @renderTemplateFn.bind(@, tasks.tmpl)
     tasks.tmpl.add order, tmplFn
     return @
@@ -142,6 +142,8 @@ class ContentTree extends ContentBaseNode
   constructor: (container, @key)->
     @items = {}
     @init(container)
+    if not @key
+      throw new Error("Key must be valid #{@}")
 
   addItem: (key, item)->
     if not item.isContentNode

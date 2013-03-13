@@ -8,94 +8,6 @@
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
 
-stableSort = (list, options={})->
-  keyFn = options.key or (e)->e
-  res = [].map.call list, (e, i)->
-    return (w = keyFn(e))? and [w, i, e] or [null, i, e]
-  res.sort (a,b)->
-    return 1 if a[0]>b[0]
-    return -1 if a[0]<b[0]
-    return a[1]-b[1]
-  tgt = if options.inplace then list else res
-  tgt.length = res.length
-  for e,i in res
-    if e is undefined
-      delete tgt[i]
-    else tgt[i]=e.pop()
-  return tgt
-exports.stableSort = stableSort
-
-
-# `functionList()` creates a new function list with an `invoke()` method that
-# will call each function in the list with the supplied arguments. Also
-# provides function-like methods of `bind()`, `call()` and `apply()` to provide
-# a callable API.
-
-functionList = do ->
-  invokeEach = (self, args, error)->
-    for fn in self
-      try fn(args...)
-      catch err
-        if self.error? then self.error(err)
-        else if error? then error(err)
-        else console.error(err.stack or err)
-
-  methods =
-    bind: (args...)-> @invoke.bind(args...)
-    call: (args...)-> @invoke.call(args...)
-    apply: (self, args)-> @invoke.apply(self, args)
-
-  init = (self, args...)->
-    desc = {}
-    for each in args
-      for own k,v of each
-        desc[k] = value:v
-    Object.defineProperties(self, desc)
-    return self
-
-
-  create = (self=[], error)->
-    init self, methods,
-      once: []
-      invoke: ->
-        invokeEach(self.once.splice(0), arguments, error)
-        invokeEach(self, arguments, error)
-        return @
-  create.create = create
-
-  create.list = (self=[], error)->
-    init self, methods,
-      invoke: -> invokeEach(self, arguments, error); return @
-
-  create.once = (self=[], error)->
-    init self, methods,
-      invoke: -> invokeEach(self.splice(0), arguments, error); return @
-
-  create.ordered = (self=[], error)->
-    init self, methods,
-      add: (w, fn)->
-        if typeof w is 'function'
-          fn = w; w = arguments[1]
-        if w isnt undefined
-          fn.w = w
-        self.push fn
-      sort: -> stableSort self, inplace:true, key:(e)-> e.w or 0
-      invoke: ->
-        invokeEach(self.sort(), arguments, error); return @
-      iter: (iterFn)->
-        q = self.sort().slice()
-        return (args...)->
-          while q.length and fn is undefined
-            fn = q.shift()
-          args.unshift fn
-          iterFn(args...)
-
-  return create
-exports.functionList = functionList
-exports.funcList = funcList = functionList
-exports.fnList = fnList = functionList
-
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # `closureQueue()` tracks the number of started and completed closures.
 # Great for knowing when things are done.
@@ -105,11 +17,11 @@ closureQueue = (tgt, callback)->
     callback = tgt; tgt=null
 
   nStarted = 0; nComplete = 0
-  start = (callback)->
+  start = (anserFn)->
     self.start?(self, nStarted-nComplete)
     nStarted++
-    return finish if not callback?
-    return finish.wrap(callback)
+    return finish if not anserFn?
+    return finish.wrap(anserFn)
   finish = ->
     isdone = ++nComplete is nStarted
     self.finish?(self, nStarted-nComplete)
@@ -117,17 +29,16 @@ closureQueue = (tgt, callback)->
       self.done?.call(self, self, nComplete)
       callback?(null, self, nComplete)
     return isdone
-  finish.wrap = (callback)->
-    return finish if not callback?
+  finish.wrap = (anserFn)->
+    return finish if not anserFn?
     return ->
-      try callback.apply(@, arguments)
+      try anserFn.apply(@, arguments)
       finally finish()
   
   Object.defineProperties self=start,
     started: get:-> nStarted
     completed: get:-> nComplete
     active: get:-> nStarted - nComplete
-    wrap: value:(callback)-> start(callback)
     inspect: value:-> "[closureQueue active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
     isIdle: value:-> nComplete is nStarted

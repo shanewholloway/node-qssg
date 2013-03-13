@@ -114,16 +114,15 @@ class KindBasePlugin extends PluginCompositeTasks
 
   bindPluginFn: (matchMethod)-> @[matchMethod].bind(@)
 
-  notImplemented: (protocolMethod, done)->
-    err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{@entry.srcRelPath}'}"
-    done(new Error(err)); return
+  notImplemented: (protocolMethod)->
+    throw new Error "#{@}::#{protocolMethod}() not implemented for {entry: '#{@entry.srcRelPath}'}"
 
-  simple: (buildTasks, done)-> @notImplemented('simple', done)
-  composite: (buildTasks, done)-> @notImplemented('composite', done)
-  context: (buildTasks, done)-> @notImplemented('context', done)
-  simpleDir: (buildTasks, done)-> @notImplemented('simpleDir', done)
-  compositeDir: (buildTasks, done)-> @notImplemented('compositeDir', done)
-  contextDir: (buildTasks, done)-> @notImplemented('contextDir', done)
+  simple: (buildTasks)-> @notImplemented('simple')
+  composite: (buildTasks)-> @notImplemented('composite')
+  context: (buildTasks)-> @notImplemented('context')
+  simpleDir: (buildTasks)-> @notImplemented('simpleDir')
+  compositeDir: (buildTasks)-> @notImplemented('compositeDir')
+  contextDir: (buildTasks)-> @notImplemented('contextDir')
 
 exports.KindBasePlugin = KindBasePlugin
 
@@ -132,30 +131,27 @@ exports.KindBasePlugin = KindBasePlugin
 class KindPlugin extends KindBasePlugin
   buildOrder: 2
 
-  simple: (buildTasks, done)->
+  simple: (buildTasks)->
     @bindRenderContent()
-    done()
-  composite: (buildTasks, done)->
+  composite: (buildTasks)->
     @bindRenderContent()
-    done()
-  context: (buildTasks, done)->
-    buildTasks.add @buildOrder, =>
-      @setContext({}, done)
-    done()
+  context: (buildTasks)->
+    buildTasks.add @buildOrder, (taskFn)=>
+      @setContext({}, taskFn)
 
-  simpleDir: (buildTasks, done)->
+  simpleDir: (buildTasks)->
     if @entry.ext.length
-      return @compositeDir(@entry, done)
+      return @compositeDir(@entry)
     ctree = @entry.addContentTree()
-    @entry.walk(); done()
-  compositeDir: (buildTasks, done)->
+    @entry.walk()
+  compositeDir: (buildTasks)->
     ctree = @entry.addComposite()
-    @entry.walk(); done()
-  contextDir: (buildTasks, done)->
+    @entry.walk()
+  contextDir: (buildTasks)->
     if @entry.ext.length>0
       console.warn 'Context directories with extensions are not defined'
     ctree = @entry.newCtxTree()
-    @entry.walk(); done()
+    @entry.walk()
 
 exports.KindPlugin = KindPlugin
 pluginTypes.kind = KindPlugin
@@ -166,14 +162,14 @@ class TemplatePlugin extends KindBasePlugin
   templateOrder: 1
   buildOrder: 5
 
-  composite: (buildTasks, done)->
-    buildTasks.add @buildOrder, =>
+  composite: (buildTasks)->
+    buildTasks.add @buildOrder, (taskFn)=>
       @addTemplate()
-    done()
-  context: (buildTasks, done)->
+      taskFn()
+  context: (buildTasks)->
     buildTasks.add @buildOrder, =>
       @entry.setCtxTemplate @bindTemplateFn()
-    done()
+      taskFn()
 
 exports.TemplatePlugin = TemplatePlugin
 pluginTypes.template = TemplatePlugin
@@ -183,14 +179,12 @@ pluginTypes.template = TemplatePlugin
 class MetadataPlugin extends KindBasePlugin
   buildOrder: -1
 
-  composite: (buildTasks, done)->
-    buildTasks.add @buildOrder, =>
-      @setMetadata()
-    done()
-  context: (buildTasks, done)->
-    buildTasks.add @buildOrder, =>
-      @setMetadata()
-    done()
+  composite: (buildTasks)->
+    buildTasks.add @buildOrder, (taskFn)=>
+      @setMetadata(taskFn)
+  context: (buildTasks)->
+    buildTasks.add @buildOrder, (taskFn)=>
+      @setMetadata(taskFn)
 
 exports.TemplatePlugin = TemplatePlugin
 pluginTypes.template = TemplatePlugin

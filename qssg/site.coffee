@@ -7,6 +7,8 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
+path = require('path')
+
 qplugins = require('./plugins')
 qrules = require('./rules')
 qcontent = require('./content')
@@ -25,8 +27,7 @@ class Site
     @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
 
-    @buildTasks = qutil.fnList.ordered()
-    @walkTasks = qutil.createTaskTracker()
+    @buildTasks = qutil.invokeList.ordered()
     @_initPlugins(opt, plugins)
     @_initWalker(opt)
 
@@ -61,42 +62,35 @@ class Site
       plugins.merge(opt.plugins)
     else plugins = @plugins
 
-    tree = @content.addTree(opt.mount)
+    tree = @content.addTree(path.join('.', opt.mount))
     @walker.walkRootContent aPath, tree, plugins
 
-  onPluginAnswer: (entry, err)->
-    if err?
-      console.warn(entry)
-      console.warn(err.stack or err)
-      console.warn('')
   matchEntryPlugin: (entry, pluginFn)->
-    walkTask = @walkTasks @onPluginAnswer.bind(@, entry)
     process.nextTick =>
-      try pluginFn @buildTasks, walkTask
-      catch err then walkTask(err)
+      try pluginFn @buildTasks
+      catch err
+        console.warn(entry)
+        console.warn(err.stack or err)
+        console.warn('')
 
-  build: (rootPath, vars, done)->
+  invokeBuildTasks: ->
+    tasks = qutil.createTaskTracker(arguments...)
+    for fn in @buildTasks.sort().slice()
+      taskFn = tasks()
+      try fn(vars, taskFn)
+      catch err then taskFn(err)
+    return tasks.seed()
+
+  build: (rootPath, vars, callback)->
     if typeof vars is 'function'
-      done = vars; vars = null
+      callback = vars; vars = null
     vars = Object.create vars || null, meta:value:@meta
-    @tasks.invoke(vars)
+
     bldr = qbuilder.createBuilder(rootPath, @content)
-    @done -> bldr.build(vars, done)
+    @walker.done qutil.debounce 100, =>
+      @invokeBuildTasks (err, tasks)=>
+        bldr.build(vars, callback)
     return bldr
-
-  done: (done)->
-    return done() if @isDone()
-
-    tid = setInterval(=>
-        return if not @isDone()
-        clearInterval(tid)
-        done()
-      , 10)
-
-  isDone: ->
-    if not @walker.isDone()
-      return false
-    return @roots.every (e)-> e.isDone()
 
 module.exports =
   Site: Site

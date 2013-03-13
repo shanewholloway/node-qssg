@@ -21,17 +21,19 @@ class SiteBuilder
     if typeof vars is 'function'
       doneBuildFn = vars; vars = null
 
+    console.log 'building'
     rootOutput = Object.create null,
       rootPath: value: @rootPath, enumerable: true
-    vars = Object.create vars||null,
+    rootVars = Object.create vars||null,
       output: value: rootOutput
 
     trackerMap = {}
 
     fnList = []
-    dirTasks = qutil.createTaskTracker => @fsTaskQueue.extend fnList; fnList = null
-    tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
+    dirTasks = qutil.createTaskTracker =>
+      @fsTaskQueue.extend fnList; fnList = null
     tasks = qutil.createTaskTracker -> clearInterval(tidUpdate); doneBuildFn()
+    tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
 
     logStarted = @logStarted.bind(@)
     logUnchanged = @logUnchanged.bind(@)
@@ -41,28 +43,33 @@ class SiteBuilder
       if vkind is 'tree'
         @fs.makeDirs fullPath, dirTasks()
 
-      if citem.renderFn?
-        output = Object.create rootOutput,
-          vkind: value: vkind
-          relPath: value: relPath, enumerable: true
-          fullPath: value: fullPath
-          content: value: citem
-
-        rvars = Object.create vars,
-          output: value: output, enumerable: true
-
+      if true or not citem.render?
         fnList.push (taskDone)=>
-          @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
-            if stat?
-              output.mtime = stat.mtime
-              if citem.mtime? and citem.mtime > stat.mtime
-                return logUnchanged(output)
-            logStarted(output)
-            renderAnswer = tasks =>
-              delete trackerMap[relPath]
-              @renderAnswerEx(output, arguments...)
-            trackerMap[relPath] = renderAnswer
-            citem.renderFn(rvars, renderAnswer)
+          process.nextTick tasks()
+          taskDone()
+        return
+
+      output = Object.create rootOutput,
+        vkind: value: vkind
+        relPath: value: relPath, enumerable: true
+        fullPath: value: fullPath
+        content: value: citem
+
+      vars = Object.create rootVars,
+        output: value: output, enumerable: true
+
+      fnList.push (taskDone)=>
+        @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
+          if stat?
+            output.mtime = stat.mtime
+            if citem.mtime? and citem.mtime > stat.mtime
+              return logUnchanged(output)
+          logStarted(output)
+          renderAnswer = tasks =>
+            delete trackerMap[relPath]
+            @renderAnswerEx(output, arguments...)
+          trackerMap[relPath] = renderAnswer
+          citem.render(vars, renderAnswer)
 
       return true
 
@@ -87,8 +94,8 @@ class SiteBuilder
     dst: path.relative @cwd, rx.relPath
     src: path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
   logStarted: (rx)->
-    #paths = @logPathsFor(rx)
-    #console.error "start['#{paths.src}'] -- '#{paths.dst}'"
+    paths = @logPathsFor(rx)
+    console.error "start['#{paths.src}'] -- '#{paths.dst}'"
     return
   logError: (err, rx)->
     paths = @logPathsFor(rx)
