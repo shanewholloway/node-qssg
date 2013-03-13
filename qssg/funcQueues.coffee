@@ -10,7 +10,8 @@
 
 stableSort = (list, options={})->
   keyFn = options.key or (e)->e
-  res = [].map.call list, (e,i)-> [keyFn(e), i, e]
+  res = [].map.call list, (e, i)->
+    return (w = keyFn(e))? and [w, i, e] or [null, i, e]
   res.sort (a,b)->
     return 1 if a[0]>b[0]
     return -1 if a[0]<b[0]
@@ -20,8 +21,9 @@ stableSort = (list, options={})->
   for e,i in res
     if e is undefined
       delete tgt[i]
-    else tgt[i]=e[2]
+    else tgt[i]=e.pop()
   return tgt
+exports.stableSort = stableSort
 
 
 # `functionList()` creates a new function list with an `invoke()` method that
@@ -79,6 +81,13 @@ functionList = do ->
       sort: -> stableSort self, inplace:true, key:(e)-> e.w
       invoke: ->
         invokeEach(self.sort(), arguments, error); return @
+      iter: (iterFn)->
+        q = self.sort().slice()
+        return (args...)->
+          while q.length and fn is undefined
+            fn = q.shift()
+          args.unshift fn
+          iterFn(args...)
 
   return create
 exports.functionList = functionList
@@ -117,6 +126,7 @@ closureQueue = (tgt, callback)->
     started: get:-> nStarted
     completed: get:-> nComplete
     active: get:-> nStarted - nComplete
+    wrap: value:(callback)-> start(callback)
     inspect: value:-> "[closureQueue active: #{@active} completed: #{@completed}]"
     toString: value:-> @inspect()
     isIdle: value:-> nComplete is nStarted

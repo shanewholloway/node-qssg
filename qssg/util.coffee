@@ -35,13 +35,13 @@ createTaskTracker = ->
   self.done = funcQueues.functionList()
   self.add = (args...)->
     task = self()
-    if 'function' is typeof args[args.length-1]
+    if typeof args[args.length-1] is 'function'
       task = task.wrap(args.pop())
     task.args = args if args.length?
     return task
 
   self.defer = (ms, callback)->
-    if 'function' is typeof ms
+    if typeof ms is 'function'
       callback = ms; ms = null
 
     task = self(callback)
