@@ -139,12 +139,10 @@ MatchEntry = (function() {
     return this.src.path;
   };
 
-  MatchEntry.prototype.extendVars = function(vars) {
-    if (vars == null) {
-      vars = {};
+  MatchEntry.prototype.setCtxValue = function(value) {
+    if (value !== void 0) {
+      return this.ctx[this.name0] = value;
     }
-    vars.ctx = this.ctx;
-    return vars;
   };
 
   MatchEntry.prototype._setContent = function(content, contentTree) {
@@ -376,7 +374,7 @@ MatchingWalker = (function(_super) {
     var matchMethod, plugin;
     matchMethod = entry.setMatchMethod(matchKind);
     plugin = this.pluginMap.findPlugin(entry);
-    return this.site.matchEntryPlugin(plugin, entry, matchMethod);
+    return this.site.matchEntryPlugin(entry, plugin.bindPluginFn(matchMethod));
   };
 
   return MatchingWalker;

@@ -12,7 +12,8 @@ stableSort = function(list, options) {
     return e;
   };
   res = [].map.call(list, function(e, i) {
-    return [keyFn(e), i, e];
+    var w;
+    return ((w = keyFn(e)) != null) && [w, i, e] || [null, i, e];
   });
   res.sort(function(a, b) {
     if (a[0] > b[0]) {
@@ -30,11 +31,13 @@ stableSort = function(list, options) {
     if (e === void 0) {
       delete tgt[i];
     } else {
-      tgt[i] = e[2];
+      tgt[i] = e.pop();
     }
   }
   return tgt;
 };
+
+exports.stableSort = stableSort;
 
 functionList = (function() {
   var create, init, invokeEach, methods;
@@ -133,8 +136,9 @@ functionList = (function() {
       add: function(w, fn) {
         if (typeof w === 'function') {
           fn = w;
-          w = void 0;
-        } else if (w != null) {
+          w = arguments[1];
+        }
+        if (w !== void 0) {
           fn.w = w;
         }
         return self.push(fn);
@@ -143,13 +147,26 @@ functionList = (function() {
         return stableSort(self, {
           inplace: true,
           key: function(e) {
-            return e.w;
+            return e.w || 0;
           }
         });
       },
       invoke: function() {
         invokeEach(self.sort(), arguments, error);
         return this;
+      },
+      iter: function(iterFn) {
+        var q;
+        q = self.sort().slice();
+        return function() {
+          var args, fn;
+          args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+          while (q.length && fn === void 0) {
+            fn = q.shift();
+          }
+          args.unshift(fn);
+          return iterFn.apply(null, args);
+        };
       }
     });
   };
@@ -222,6 +239,11 @@ closureQueue = function(tgt, callback) {
     active: {
       get: function() {
         return nStarted - nComplete;
+      }
+    },
+    wrap: {
+      value: function(callback) {
+        return start(callback);
       }
     },
     inspect: {

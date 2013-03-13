@@ -14,12 +14,12 @@ module.exports = exports = Object.create(qpluginTypes)
 {splitExt, pluginTypes} = qpluginTypes
 
 
-class PluginMap extends qpluginMap.PluginCompositeMap
+class PluginMap extends qpluginMap.PluginBaseMap
   Object.defineProperties @.prototype,
     pluginTypes: value: pluginTypes
 
   constructor:->
-    @_initPluginMaps()
+    super()
     @addDefaultPlugins()
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -36,8 +36,8 @@ class PluginMap extends qpluginMap.PluginCompositeMap
       @addPluginForKeys(plugin, input, output) if input?
 
   addPluginForKeys: (plugin, input, output)->
-    if not plugin.isPlugin
-      throw new Error("Expecting a plugin instance")
+    if not plugin.isFilePlugin
+      throw new Error("Expecting a file plugin instance")
 
     input = splitExt(input)
     output = splitExt(output) if output?
@@ -84,7 +84,7 @@ class PluginMap extends qpluginMap.PluginCompositeMap
 
   addDefaultPlugins: ->
     @addPluginAt '', @newPluginTypeEx('static')
-    @addPluginAt '&', @newPluginTypeEx('composed')
+    @addPluginAt '&', @newPluginTypeEx('kind')
 
 exports.createPluginMap = -> new PluginMap()
 exports.plugins = exports.createPluginMap()

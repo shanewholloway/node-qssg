@@ -58,9 +58,9 @@ class MatchEntry
   isWalkable: -> @src.isWalkable(arguments...)
   walkPath: -> @src.path
 
-  extendVars: (vars={})->
-    vars.ctx = @ctx
-    return vars
+  setCtxValue: (value)->
+    if value isnt undefined
+      @ctx[@name0] = value
 
   #~ content/output related
 
@@ -182,7 +182,8 @@ class MatchingWalker extends tromp.WalkRoot
   match: (entry, matchKind)->
     matchMethod = entry.setMatchMethod(matchKind)
     plugin = @pluginMap.findPlugin(entry)
-    @site.matchEntryPlugin(plugin, entry, matchMethod)
+    @site.matchEntryPlugin entry,
+      plugin.bindPluginFn(matchMethod)
 
 
 exports.MatchingWalker = MatchingWalker

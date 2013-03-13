@@ -25,7 +25,8 @@ class Site
     @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
 
-    @tasks = qutil.createTaskTracker()
+    @buildTasks = qutil.fnList.ordered()
+    @walkTasks = qutil.createTaskTracker()
     @_initPlugins(opt, plugins)
     @_initWalker(opt)
 
@@ -63,22 +64,22 @@ class Site
     tree = @content.addTree(opt.mount)
     @walker.walkRootContent aPath, tree, plugins
 
-  matchEntryPlugin: (plugin, entry, matchMethod)->
-    entry = plugin.rename(entry)
-    if (method = plugin[matchMethod])?.call?
-      @tasks.defer =>
-        method.call plugin, entry, @tasks().wrap (err)->
-          console.log "  #{err}" if err?
-    else @_plugin_dnu(plugin, matchMethod)
-
-  _plugin_dnu: (plugin, matchMethod)->
-    console.warn "#{plugin} does not implement method '#{matchMethod}'"
-
+  onPluginAnswer: (entry, err)->
+    if err?
+      console.warn(entry)
+      console.warn(err.stack or err)
+      console.warn('')
+  matchEntryPlugin: (entry, pluginFn)->
+    walkTask = @walkTasks @onPluginAnswer.bind(@, entry)
+    process.nextTick =>
+      try pluginFn @buildTasks, walkTask
+      catch err then walkTask(err)
 
   build: (rootPath, vars, done)->
     if typeof vars is 'function'
       done = vars; vars = null
     vars = Object.create vars || null, meta:value:@meta
+    @tasks.invoke(vars)
     bldr = qbuilder.createBuilder(rootPath, @content)
     @done -> bldr.build(vars, done)
     return bldr

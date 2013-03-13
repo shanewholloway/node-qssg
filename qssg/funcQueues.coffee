@@ -75,10 +75,11 @@ functionList = do ->
     init self, methods,
       add: (w, fn)->
         if typeof w is 'function'
-          fn = w; w = undefined
-        else if w? then fn.w = w
+          fn = w; w = arguments[1]
+        if w isnt undefined
+          fn.w = w
         self.push fn
-      sort: -> stableSort self, inplace:true, key:(e)-> e.w
+      sort: -> stableSort self, inplace:true, key:(e)-> e.w or 0
       invoke: ->
         invokeEach(self.sort(), arguments, error); return @
       iter: (iterFn)->

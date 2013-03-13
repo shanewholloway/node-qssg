@@ -30,7 +30,8 @@ Site = (function() {
     this.meta = Object.create(opt.meta || this.meta || null);
     this.ctx = Object.create(opt.ctx || null);
     this.content = qcontent.createRoot();
-    this.tasks = qutil.createTaskTracker();
+    this.buildTasks = qutil.fnList.ordered();
+    this.walkTasks = qutil.createTaskTracker();
     this._initPlugins(opt, plugins);
     this._initWalker(opt);
   }
@@ -87,25 +88,25 @@ Site = (function() {
     return this.walker.walkRootContent(aPath, tree, plugins);
   };
 
-  Site.prototype.matchEntryPlugin = function(plugin, entry, matchMethod) {
-    var method, _ref,
-      _this = this;
-    entry = plugin.rename(entry);
-    if (((_ref = (method = plugin[matchMethod])) != null ? _ref.call : void 0) != null) {
-      return this.tasks.defer(function() {
-        return method.call(plugin, entry, _this.tasks().wrap(function(err) {
-          if (err != null) {
-            return console.log("  " + err);
-          }
-        }));
-      });
-    } else {
-      return this._plugin_dnu(plugin, matchMethod);
+  Site.prototype.onPluginAnswer = function(entry, err) {
+    if (err != null) {
+      console.warn(entry);
+      console.warn(err.stack || err);
+      return console.warn('');
     }
   };
 
-  Site.prototype._plugin_dnu = function(plugin, matchMethod) {
-    return console.warn("" + plugin + " does not implement method '" + matchMethod + "'");
+  Site.prototype.matchEntryPlugin = function(entry, pluginFn) {
+    var walkTask,
+      _this = this;
+    walkTask = this.walkTasks(this.onPluginAnswer.bind(this, entry));
+    return process.nextTick(function() {
+      try {
+        return pluginFn(_this.buildTasks, walkTask);
+      } catch (err) {
+        return walkTask(err);
+      }
+    });
   };
 
   Site.prototype.build = function(rootPath, vars, done) {
@@ -119,6 +120,7 @@ Site = (function() {
         value: this.meta
       }
     });
+    this.tasks.invoke(vars);
     bldr = qbuilder.createBuilder(rootPath, this.content);
     this.done(function() {
       return bldr.build(vars, done);

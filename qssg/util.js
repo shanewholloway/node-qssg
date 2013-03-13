@@ -54,7 +54,7 @@ createTaskTracker = function() {
     var args, task;
     args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     task = self();
-    if ('function' === typeof args[args.length - 1]) {
+    if (typeof args[args.length - 1] === 'function') {
       task = task.wrap(args.pop());
     }
     if (args.length != null) {
@@ -64,7 +64,7 @@ createTaskTracker = function() {
   };
   self.defer = function(ms, callback) {
     var task;
-    if ('function' === typeof ms) {
+    if (typeof ms === 'function') {
       callback = ms;
       ms = null;
     }

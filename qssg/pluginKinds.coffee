@@ -7,9 +7,13 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
+qutil = require('./util')
+
 exports.pluginTypes = pluginTypes = {}
 
-class ComposedCommonPlugin
+class KindBasePlugin
+  isKindPlugin: true
+
   kinds: ''
   registerPluginOn: (pluginMap)->
     pluginMap.addPluginAt '&'+@kind
@@ -24,69 +28,165 @@ class ComposedCommonPlugin
   inspect: -> "«#{@constructor.name}»"
   toString: -> @inspect()
 
-  asPluginPipeline: (pi_list)->
-    new pluginTypes.pipeline(pi_list)
+  composePlugin: (plugins, entry, matchMethod)->
+    plugins ||= []
+    @extendPlugins?(plugins)
+    for pi,i in plugins
+      pi = pi.adapt(entry)
+      entry = pi.rename(entry)
+      plugins[i] = pi
 
-  composePlugin: (pi_list, entry)->
-    @extendPlugins?(pi_list)
-    if pi_list.length>1
-      pi = @asPluginPipeline(pi_list)
-    else pi = pi_list[0]
-    pi = pi.adapt(entry)
-
-    self = Object.create @, pi:value:pi
-    self.initComposed?(pi)
+    self = Object.create @,
+      plugins:value:plugins
+      entry:value:entry
+    self.initComposed?()
     return self
 
-  rename: (entry)-> @pi.rename(entry)
+  bindPluginFn: (matchMethod)-> @[matchMethod].bind(@)
 
-  simple: (entry, callback)-> @notImplemented('simple', entry, callback)
-  composite: (entry, callback)-> @notImplemented('composite', entry, callback)
-  context: (entry, callback)-> @notImplemented('context', entry, callback)
-  simpleDir: (entry, callback)-> @notImplemented('simpleDir', entry, callback)
-  compositeDir: (entry, callback)-> @notImplemented('compositeDir', entry, callback)
-  contextDir: (entry, callback)-> @notImplemented('contextDir', entry, callback)
+  notImplemented: (protocolMethod, done)->
+    err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{@entry.srcRelPath}'}"
+    done(new Error(err)); return
 
-  notImplemented: (protocolMethod, entry, callback)->
-    err = "#{@}::#{protocolMethod}() not implemented for {entry: '#{entry.srcRelPath}'}"
-    callback(new Error(err)); return
+  simple: (buildTasks, done)-> @notImplemented('simple', done)
+  composite: (buildTasks, done)-> @notImplemented('composite', done)
+  context: (buildTasks, done)-> @notImplemented('context', done)
+  simpleDir: (buildTasks, done)-> @notImplemented('simpleDir', done)
+  compositeDir: (buildTasks, done)-> @notImplemented('compositeDir', done)
+  contextDir: (buildTasks, done)-> @notImplemented('contextDir', done)
 
-exports.ComposedCommonPlugin = ComposedCommonPlugin
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  bindTaskFn: (tasks, ns)->
+    return (vars, answerFn)=>
+      if ns?
+        vars = Object.create(vars)
+        vars[k]=v for k,v of ns
+      q = tasks.slice()
+      stepFn = (err, src)->
+        if not err? and (fn = q.shift())?
+          fn(src, vars, stepFn)
+        else answerFn(err, src)
+      @entry.read(stepFn)
+
+
+  bindRenderTasks: (tasks=[])->
+    for pi in @plugins
+      if pi.render?
+        tasks.push pi.render.bind(pi, @entry)
+    return tasks
+  bindRenderFn: (ns)->
+    @bindTaskFn @bindRenderTasks(), ns
+  bindRenderContent: ->
+    citem = @entry.getContent()
+    @bindRenderTasks citem.bindRender(@entry)
+    return citem
+
+  bindTemplate: ->
+    renderFn = @bindRenderFn(null)
+    @addTemplate (source, vars, answerFn)=>
+      vars = Object.create vars, content:value:source
+      renderFn(vars, answerFn)
+  addTemplate: (tmplFn, order=@templateOrder)->
+    @entry.getContent().addTemplate(tmplFn, order)
+  templateOrder: 0
+
+
+  bindContextTasks: (tasks=[])->
+    for pi in @plugins
+      if pi.context?
+        tasks.push pi.context.bind(pi, @entry)
+    return tasks
+  bindContextFn: (ns)->
+    @bindTaskFn @bindContextTasks(), ns
+
+  setContext: (vars={}, callback)->
+    if typeof vars is 'function'
+      callback = vars; vars = undefined
+    vars = Object.create vars||null, ctx:value:@entry.ctx
+    ctxFn = @bindContextFn()
+    ctxFn vars, (err, value)=>
+      @entry.setCtxValue(value) if not err?
+      callback?(err, value)
+
+  setMetadata: (vars={}, callback)->
+    if typeof vars is 'function'
+      callback = vars; vars = undefined
+    vars = Object.create vars||null, ctx:value:@entry.ctx
+    ctxFn = @bindContextFn()
+    ctxFn vars, (err, metadata)=>
+      if not err? and metadata?
+        citem = @entry.getContent()
+        for k,v of metadata
+          citem.meta[k]=v
+      callback?(err, metadata)
+
+exports.KindBasePlugin = KindBasePlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class ComposedPlugin extends ComposedCommonPlugin
-  isFileKindPlugin: true; isDirKindPlugin: true
+class KindPlugin extends KindBasePlugin
+  buildOrder: 2
 
-  simple: (entry, callback)->
-    @pi.bindRender(entry, callback)
-  composite: (entry, callback)->
-    @pi.bindRender(entry, callback)
-  context: (entry, callback)->
-    @pi.bindContext(entry, callback)
+  simple: (buildTasks, done)->
+    @bindRenderContent()
+    done()
+  composite: (buildTasks, done)->
+    @bindRenderContent()
+    done()
+  context: (buildTasks, done)->
+    buildTasks.add @buildOrder, =>
+      @setContext({}, done)
+    done()
 
-  simpleDir: (entry, callback)->
-    if entry.ext.length
-      return @compositeDir(entry, callback)
-    @pi.contentDir(entry, callback)
-  compositeDir: (entry, callback)->
-    @pi.compositeDir(entry, callback)
-  contextDir: (entry, callback)->
-    @pi.contextDir(entry, callback)
+  simpleDir: (buildTasks, done)->
+    if @entry.ext.length
+      return @compositeDir(@entry, done)
+    ctree = @entry.addContentTree()
+    @entry.walk(); done()
+  compositeDir: (buildTasks, done)->
+    ctree = @entry.addComposite()
+    @entry.walk(); done()
+  contextDir: (buildTasks, done)->
+    if @entry.ext.length>0
+      console.warn 'Context directories with extensions are not defined'
+    ctree = @entry.newCtxTree()
+    @entry.walk(); done()
 
-exports.ComposedPlugin = ComposedPlugin
-pluginTypes.composed = ComposedPlugin
+exports.KindPlugin = KindPlugin
+pluginTypes.kind = KindPlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class TemplatePlugin extends ComposedCommonPlugin
-  isFileKindPlugin: true; isDirKindPlugin: true
+class TemplatePlugin extends KindBasePlugin
+  templateOrder: 1
+  buildOrder: 5
 
-  prefix: 't_'
-  composite: (entry, callback)->
-    @pi.bindTemplate(entry, callback, false)
-  context: (entry, callback)->
-    @pi.bindTemplate(entry, callback, @prefix)
+  composite: (buildTasks, done)->
+    buildTasks.add @buildOrder, =>
+      @bindTemplate()
+    done()
+  context: (buildTasks, done)->
+    buildTasks.add @buildOrder, =>
+      @bindTemplate()
+    done()
+
+exports.TemplatePlugin = TemplatePlugin
+pluginTypes.template = TemplatePlugin
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class MetadataPlugin extends KindBasePlugin
+  buildOrder: -1
+
+  composite: (buildTasks, done)->
+    buildTasks.add @buildOrder, =>
+      @setMetadata()
+    done()
+  context: (buildTasks, done)->
+    buildTasks.add @buildOrder, =>
+      @setMetadata()
+    done()
 
 exports.TemplatePlugin = TemplatePlugin
 pluginTypes.template = TemplatePlugin

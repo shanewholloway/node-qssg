@@ -7,21 +7,63 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
+qutil = require('./util')
 
-class ContentBaseNode
+class Renderable
+  bindRender: (entry)->
+    @render = @renderEntryFn.bind(@, entry) if entry?
+    return @renderTasks()
+  renderTasks: ->
+    if not (tasks = @_renderTasks)?
+      tasks = qutil.fnList.ordered()
+      @_renderTasks = tasks
+    return tasks
+  addTemplate: (tmplFn, order)->
+    if typeof tmplFn isnt 'function'
+      throw new Error("Content template must be a function")
+    tasks = @renderTasks()
+    if not tasks.tmpl?
+      tasks.tmpl = qutil.fnList.ordered()
+      tasks.add 1.0, @renderTemplateFn.bind(@, tasks.tmpl)
+    tasks.tmpl.add order, tmplFn
+    return @
+
+  renderTemplateFn: (templates, source, vars, answerFn)->
+    tmplFn = templates.sort().slice(-1).pop()
+    vars = Object.create vars, content:value:source
+    tmplFn(vars, answerFn)
+
+  renderEntryFn: (entry, vars, answerFn)->
+    try
+      if @_renderTasks.length > 0
+        vars = Object.create vars, ctx:{value:@ctx}, meta:{value:@meta}
+        stepFn = @_renderTasks.iter (renderFn, err, src)->
+          if not err? and renderFn isnt undefined
+            renderFn(src, vars, stepFn)
+          else answerFn(err, src)
+        entry.read(stepFn)
+
+      else # simple static content
+        @touch(entry.stat?.mtime)
+        answerFn(null, entry.readStream())
+    catch err
+      answerFn(err)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+class ContentBaseNode extends Renderable
   Object.defineProperties @.prototype,
     dependencies: get: -> @deps
     deps: get: -> @deps=[]
 
   isContentNode: true
   init: (container)->
+    @meta = {}
     @ctx = @initCtx(container?.ctx)
 
   initCtx: (ctx_next)-> ctx_next || {}
   visit: (visitor, keyPath)->
     throw new Error("Subclass responsibility: #{@constructor.name}::visit()")
-
-  renderFn: (vars, answerFn)-> answerFn()
 
   compositeWith: (key, contentItem, container)->
     comp = new ContentComposite(container, key)

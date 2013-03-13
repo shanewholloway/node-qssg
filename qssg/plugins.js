@@ -23,7 +23,7 @@ PluginMap = (function(_super) {
   });
 
   function PluginMap() {
-    this._initPluginMaps();
+    PluginMap.__super__.constructor.call(this);
     this.addDefaultPlugins();
   }
 
@@ -53,8 +53,8 @@ PluginMap = (function(_super) {
 
   PluginMap.prototype.addPluginForKeys = function(plugin, input, output) {
     var i, o, _i, _j, _k, _len, _len1, _len2;
-    if (!plugin.isPlugin) {
-      throw new Error("Expecting a plugin instance");
+    if (!plugin.isFilePlugin) {
+      throw new Error("Expecting a file plugin instance");
     }
     input = splitExt(input);
     if (output != null) {
@@ -134,12 +134,12 @@ PluginMap = (function(_super) {
 
   PluginMap.prototype.addDefaultPlugins = function() {
     this.addPluginAt('', this.newPluginTypeEx('static'));
-    return this.addPluginAt('&', this.newPluginTypeEx('composed'));
+    return this.addPluginAt('&', this.newPluginTypeEx('kind'));
   };
 
   return PluginMap;
 
-})(qpluginMap.PluginCompositeMap);
+})(qpluginMap.PluginBaseMap);
 
 exports.createPluginMap = function() {
   return new PluginMap();

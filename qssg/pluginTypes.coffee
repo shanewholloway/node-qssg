@@ -38,7 +38,7 @@ class CommonPluginBase
         @[k] = v
     return @
 
-  isPlugin: true
+  isFilePlugin: true
   inspect: ->
     if @input?
       "«#{@pluginName} '#{@input}'»"
@@ -53,81 +53,27 @@ class CommonPluginBase
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  pluginProtocol: ['adapt','rename', 'render', 'context',
-    'bindRender', 'bindContext', 'bindTemplate']
-
   adapt: (entry)-> @
   rename: (entry)-> entry
 
-  render: (entry, vars, answerFn)->
-    @notImplemented('render', entry, answerFn)
-  bindRender: (entry, callback)->
-    citem = entry.getContent()
-    citem.renderFn = @render.bind(entry)
-    callback(null, citem)
-
-  context: (entry, callback)->
+  render: (entry, source, vars, callback)->
+    @notImplemented('render', entry, callback)
+  context: (entry, source, vars, callback)->
     @notImplemented('context', entry, callback)
-  bindContext: (entry, callback)->
-    @context entry, (err, value)->
-      if value isnt undefined
-        entry.ctx[entry.name0] = value
-      callback(err, value)
 
-  bindTemplate: (entry, callback, prefix)->
-    @context entry, (err, value)->
-      return callback(err) if err?
-      if typeof value isnt 'function'
+  template: (entry, source, vars, callback)->
+    @context entry, source, vars, (err, renderSrcFn)=>
+      if not err?
+        if typeof renderSrcFn is 'function'
+          return callback(null, renderSrcFn)
         err = new Error("#{@} failed to create template function from #{entry}")
-        return callback(err, value)
-
-      if prefix is false
-        citem = entry.getContent()
-        citem.templateFn = value
-        return callback(null, citem)
-      else
-        entry.ctx[prefix+entry.name0] = value
-        return callback(null, value)
-
-class DirPluginBase extends CommonPluginBase
-  isDirPlugin: true
-
-  pluginProtocol:
-    CommonPluginBase::pluginProtocol.concat [
-      'contentDir', 'compositeDir', 'contextDir']
-
-  contentDir: (entry, callback)->
-    ctree = entry.addContentTree()
-    callback(null, ctree)
-    entry.walk()
-
-  compositeDir: (entry, callback)->
-    ctree = entry.addComposite()
-    callback(null, ctree)
-    entry.walk()
-
-  contextDir: (entry, callback)->
-    if entry.ext.length>0
-      console.warn 'Context directories with extensions are not defined'
-    ctree = entry.newCtxTree()
-    entry.walk()
-    callback(null, ctree)
-
-
-class FilePluginBase extends CommonPluginBase
-  isFilePlugin: true
-
-class CombinedPluginBase extends DirPluginBase
-  isFilePlugin: true
+      return callback(err)
 
 exports.CommonPluginBase = CommonPluginBase
-exports.DirPluginBase = DirPluginBase
-exports.FilePluginBase = FilePluginBase
-exports.CombinedPluginBase = CombinedPluginBase
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class BasicPlugin extends FilePluginBase
+class BasicPlugin extends CommonPluginBase
   defaultExt: -> @splitExt(@output)[0]
   renameForFormat: (entry)->
     ext0 = entry.ext.pop()
@@ -138,10 +84,10 @@ class BasicPlugin extends FilePluginBase
   registerPluginOn: (pluginMap)->
     pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
 
-  render: (entry, vars, answerFn)->
-    entry.read(answerFn)
-  context: (entry, callback)->
-    entry.read(callback)
+  render: (entry, source, vars, callback)->
+    callback(null, source)
+  context: (entry, source, vars, callback)->
+    callback(null, source)
 
 exports.BasicPlugin = BasicPlugin
 
@@ -149,45 +95,44 @@ exports.BasicPlugin = BasicPlugin
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class PipelinePlugin extends BasicPlugin
-  constructor: (@pluginList)->
+  constructor: (@list)->
 
   rename: (entry)->
-    for pi in @pluginList
+    for pi in @list
       entry = pi.rename(entry)
     return entry
 
   adapt: (entry)->
     self = Object.create(@)
-    self.pluginList = @pluginList.map (pi)-> pi.adapt(entry)
+    self.list = @list.map (pi)-> pi.adapt(entry)
     return self
 
-  render: (entry, vars, answerFn)->
-    pluginList = @pluginList.slice()
+  iterEach: (callback, eachFn)->
+    pi_list = @list.slice()
+    return (err, args...)->
+      return callback(err) if err?
+      if (pi = pi_list.shift())?
+        process.nextTick ->
+          eachFn(pi, args...)
+      else callback(arguments...)
 
-    renderOverlay = (err, entry_)->
-      if err?
-        return answerFn(err)
-      else
-        pi = pluginList.shift()
-        pi.render(entry_, vars, answerNext)
-      return
+  render: (entry, source, vars, callback)->
+    stepFn = @iterEach callback, (pi, src)->
+      pi.render(entry, src, vars, stepFn)
+    stepFn(null, source)
 
-    answerNext = (err, what)->
-      if err?
-        return answerFn(err)
-      else if pluginList.length > 0
-        try entry.overlaySource(what, renderOverlay)
-        catch err then return answerFn(err)
-      else answerFn(arguments...)
-
-    renderOverlay(null, entry, entry.readSync())
+  context: (entry, source, vars, callback)->
+    stepFn = @iterEach callback, (pi, src)->
+      pi.context(entry, src, vars, stepFn)
+    stepFn(null, source)
 
 exports.PipelinePlugin = PipelinePlugin
+pluginTypes.pipeline = PipelinePlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-class StaticPlugin extends CombinedPluginBase
+class StaticPlugin extends CommonPluginBase
   init: (options...)->
     @extList = []
     for opt in options
@@ -207,38 +152,28 @@ class StaticPlugin extends CombinedPluginBase
       else
         console.warn "Ignoreing invalid static extension #{ext}"
 
-  render: (entry, vars, callback)->
+  renderEx0: (entry, vars, callback)->
     entry.touch(false) # update to src mtime
     callback(null, entry.readStream())
-  context: (entry, callback)->
-    entry.read(callback)
+  render: (entry, source, vars, callback)->
+    callback(null, source)
+  context: (entry, source, vars, callback)->
+    callback(null, source)
 pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
 
 
+#~ Compiled & Rendered Plugins ~~~~~~~~~~~~~~~~~~~~~~
+
 class RenderedPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  render: (entry, vars, callback)->
-    @renderEntry(entry, entry.extendVars(vars), callback)
-  context: (entry, callback)->
-    @render(entry, {}, callback)
-
-  renderEntry: (entry, vars, callback)->
-    if @renderFile?
-      @renderFile(entry, entry.srcPath, vars, callback)
-    else if @render?
-      entry.read (err, data)=>
-        if data?
-          @render(entry, data, vars, callback)
-        else callback(err)
-    else if @compileEntry?
-      @compileEntry entry, vars, (err, boundRenderFn)->
-        if boundRenderFn?
-          boundRenderFn(vars, callback)
-        else callback(err)
-    else
-      @notImplemented('render', entry, callback)
-    return
+  context: (entry, source, vars, callback)->
+    @render(entry, source, vars, callback)
+  render: (entry, source, vars, callback)->
+    if not @compile?
+      return @notImplemented('render', entry, callback)
+    @compile entry, source, (err, renderFn)->
+      renderFn(vars, callback)
 
 pluginTypes.rendered = RenderedPlugin
 exports.RenderedPlugin = RenderedPlugin
@@ -246,20 +181,12 @@ exports.RenderedPlugin = RenderedPlugin
 
 class CompiledPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  context: (entry, callback)->
-    @compileEntry(entry, entry.extendVars(), callback)
-
-  compileEntry: (entry, vars, callback)->
-    if @compileFile?
-      @compileFile(entry, entry.srcPath, vars, callback)
-    else if @compile?
-      entry.read (err, data)=>
-        if data?
-          @compile(entry, data, vars, callback)
-        else callback(err, data)
-    else
-      @notImplemented('compile', entry, callback)
-    return
+  render: (entry, source, vars, callback)->
+    @notImplemented('render', entry, callback)
+  context: (entry, source, vars, callback)->
+    if not @compile?
+      return @notImplemented('compile', entry, callback)
+    @compile(entry, source, callback)
 
 pluginTypes.compiled = CompiledPlugin
 exports.CompiledPlugin = CompiledPlugin
@@ -267,27 +194,24 @@ exports.CompiledPlugin = CompiledPlugin
 class CompileRenderPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
   render: RenderedPlugin::render
-  renderEntry: RenderedPlugin::renderEntry
   context: CompiledPlugin::context
-  compileEntry: CompiledPlugin::compileEntry
 
 pluginTypes.compile_render = CompileRenderPlugin
 exports.CompileRenderPlugin = CompileRenderPlugin
 
 
+#~ Node.js provided plugin functionality ~~~~~~~~~~~~
+
 class JsonPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  parse: (entry, callback)->
-    entry.read (err, data)->
-      return callback(err) if err?
-      try callback(null, JSON.parse(data), data)
-      catch err then callback(err, null, data)
+  context: (entry, source, vars, callback)->
+    @parse source, callback
+  render: (entry, source, vars, callback)->
+    @parse source, (err)-> callback(err, source)
 
-  context: (entry, callback)->
-    @parse(entry, callback)
-  render: (entry, vars, answerFn)->
-    @parse entry, (err, obj, data)->
-      callback(err, data)
+  parse: (source, callback)->
+    try callback null, JSON.parse(source)
+    catch err then callback(err)
 
 pluginTypes.json = JsonPlugin
 exports.JsonPlugin = JsonPlugin
@@ -297,38 +221,34 @@ class ModulePlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
 
   adapt: (entry)->
-    nsMod = {entry:entry, host:@}
-    return if not @accept(entry, nsMod)
+    return if not @accept(entry)
 
     nsMod.host = self = Object.create(@)
-    mod = self.load(entry, nsMod)
-    return if not mod?
-
-    for meth in @pluginProtocol
-      self[meth] = mod[meth] if mod[meth]?
-    if mod.adapt?
+    mod = self.loadModule(entry, nsMod)
+    if mod?.adapt?
       return mod.adapt.call(self, entry)
     else return self
 
-  accept: (entry, nsMod)->
-    not entry.ext.some (e)-> e.match(/\d/)
-  result: (mod, nsMod)-> mod
-  error: (err, nsMod)->
-    console.error("\nModule '#{nsMod.entry.srcRelPath}' loading encountered an error")
+  accept: (entry)-> not entry.ext.some (e)-> e.match(/\d/)
+  error: (err, entry)->
+    console.error("\nModule '#{entry.srcRelPath}' loading encountered an error")
     console.error(err.stack or err)
     null
-  load: (entry, nsMod)->
+  loadModule: (entry)->
     try
       mod = entry.loadModule()
-      if mod.initPlugin?
-        mod = mod.initPlugin?(nsMod) || mod
-      return @result(mod, nsMod)
+      return @initModule(mod, entry)
     catch err
-      return @error(err, nsMod)
+      return @error(err)
+  initModule: (mod, entry)->
+    if not mod.initPlugin?
+      mod = mod.initPlugin?(@, entry) || mod
+    self[k] = v for k,v of mod
+    return mod
 
-  render: (entry, vars, answerFn)->
-    @notImplemented('render', entry, answerFn)
-  context: (entry, callback)->
+  render: (entry, source, vars, callback)->
+    @notImplemented('render', entry, callback)
+  context: (entry, source, vars, callback)->
     @notImplemented('context', entry, callback)
 
   notImplemented: (protocolMethod, entry, callback)->
