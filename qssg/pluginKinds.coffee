@@ -172,7 +172,7 @@ class TemplatePlugin extends KindBasePlugin
     done()
   context: (buildTasks, done)->
     buildTasks.add @buildOrder, =>
-      @entry.setCtxValue @bindTemplateFn()
+      @entry.setCtxTemplate @bindTemplateFn()
     done()
 
 exports.TemplatePlugin = TemplatePlugin

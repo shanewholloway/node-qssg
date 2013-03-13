@@ -61,6 +61,11 @@ class MatchEntry
   setCtxValue: (value)->
     if value isnt undefined
       @ctx[@name0] = value
+  setCtxTemplate: (tmplFn)->
+    if typeof tmplFn is 'function'
+      @ctx.tmpl[@name0] = tmplFn
+    else if tmplFn isnt undefined
+      throw new Error("setCtxTemplate must be called with a template function ")
 
   #~ content/output related
 
