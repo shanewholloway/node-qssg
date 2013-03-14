@@ -70,11 +70,11 @@ class MatchEntry
 
   #~ content/output related
 
-  _setContent: (content, contentTree)->
-    prop = {}
-    prop.content = value:content, enumerable:true
-    prop.tree = value:contentTree if contentTree?
-    Object.defineProperties @, prop
+  _setContent: (content, tree)->
+    if tree? # add the tree to the *content*
+      Object.defineProperty content, 'tree', value:tree
+    Object.defineProperty @, 'content',
+      value:content, enumerable:true
     return content
 
   newCtxTree: (key=@name)->

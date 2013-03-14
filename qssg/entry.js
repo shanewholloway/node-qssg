@@ -156,19 +156,16 @@ MatchEntry = (function() {
     }
   };
 
-  MatchEntry.prototype._setContent = function(content, contentTree) {
-    var prop;
-    prop = {};
-    prop.content = {
+  MatchEntry.prototype._setContent = function(content, tree) {
+    if (tree != null) {
+      Object.defineProperty(content, 'tree', {
+        value: tree
+      });
+    }
+    Object.defineProperty(this, 'content', {
       value: content,
       enumerable: true
-    };
-    if (contentTree != null) {
-      prop.tree = {
-        value: contentTree
-      };
-    }
-    Object.defineProperties(this, prop);
+    });
     return content;
   };
 
