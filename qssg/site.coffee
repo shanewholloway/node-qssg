@@ -16,6 +16,8 @@ qentry = require('./entry')
 qbuilder = require('./builder')
 qutil = require('./util')
 
+module.exports = exports = Object.create(qplugins)
+
 class Site
   Object.defineProperties @.prototype,
     site: get: ->@
@@ -92,9 +94,7 @@ class Site
         bldr.build(vars, callback)
     return bldr
 
-module.exports =
-  Site: Site
-  createSite: (opt, plugins)-> new Site(opt, plugins)
-  plugins: qplugins.plugins
-  createPluginMap: qplugins.createPluginMap
+exports.Site = Site
+exports.createSite = (opt, plugins)->
+  new Site(opt, plugins)
 

@@ -11,16 +11,17 @@ qpluginMap = require('./pluginMap')
 qpluginTypes = require('./pluginTypes')
 module.exports = exports = Object.create(qpluginTypes)
 
-{splitExt, pluginTypes} = qpluginTypes
+{StaticPlugin, KindPlugin, splitExt} = qpluginTypes
 
 
 class PluginMap extends qpluginMap.PluginBaseMap
-  Object.defineProperties @.prototype,
-    pluginTypes: value: pluginTypes
-
   constructor:->
     super()
     @addDefaultPlugins()
+
+  addDefaultPlugins: ->
+    @addPluginAt '', new StaticPlugin()
+    @addPluginAt '&', new KindPlugin()
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -55,38 +56,11 @@ class PluginMap extends qpluginMap.PluginBaseMap
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-  newPluginTypeEx: (key, args)->
-    cls = @pluginTypes[key]
-    if not cls
-      throw new Error("Plugin for type '#{key}' not found")
-
-    pi = new cls()
-    pi.init(args...)
+  addStatic: ->
+    pi = new StaticPlugin()
+    @add pi.init(arguments...)
     return pi
-  newPluginType: (key, args...)->
-    return @newPluginTypeEx(key, args)
-
-  addPluginTypeEx: (key, args)->
-    @add pi=@newPluginTypeEx(key, args)
-    return pi
-  addPluginType: (key, args...)->
-    return @addPluginTypeEx(key, args)
-
-  addFileType: (obj)->
-    if obj.compile?
-      return @addPluginTypeEx('compile', arguments)
-    if obj.render?
-      return @addPluginTypeEx('render', arguments)
-    throw new Error("Unable to find a `compile()` or `render()` method")
-
-  addStaticType: -> @addPluginTypeEx('static', arguments)
-  addCompiledType: -> @addPluginTypeEx('compile', arguments)
-  addRenderedType: -> @addPluginTypeEx('render', arguments)
-  addModuleType: -> @addPluginTypeEx('module', arguments)
-
-  addDefaultPlugins: ->
-    @addPluginAt '', @newPluginTypeEx('static')
-    @addPluginAt '&', @newPluginTypeEx('kind')
+  addStaticType: @::addStatic
 
 exports.createPluginMap = -> new PluginMap()
 exports.plugins = exports.createPluginMap()
