@@ -11,7 +11,11 @@ Renderable = (function() {
 
   Renderable.prototype.bindRender = function(entry) {
     if (entry != null) {
-      this.render = this.renderEntryFn.bind(this, entry);
+      Object.defineProperties(this, {
+        render: {
+          value: this.renderEntryFn.bind(this, entry)
+        }
+      });
     }
     return this.renderTasks();
   };
@@ -20,7 +24,11 @@ Renderable = (function() {
     var tasks;
     if ((tasks = this._renderTasks) == null) {
       tasks = invokeList.ordered();
-      this._renderTasks = tasks;
+      Object.defineProperties(this, {
+        _renderTasks: {
+          value: tasks
+        }
+      });
     }
     return tasks;
   };
@@ -50,25 +58,10 @@ Renderable = (function() {
     return tmplFn(vars, answerFn);
   };
 
-  Renderable.prototype.extendVars = function(vars) {
-    if (vars == null) {
-      vars = {};
-    }
-    return Object.create(vars, {
-      ctx: {
-        value: this.ctx
-      },
-      meta: {
-        value: this.meta
-      }
-    });
-  };
-
   Renderable.prototype.renderEntryFn = function(entry, vars, answerFn) {
     var stepFn, _ref;
     try {
       if (this._renderTasks.length > 0) {
-        vars = this.extendVars(vars);
         stepFn = this._renderTasks.iter(function(renderFn, err, src) {
           if ((err == null) && renderFn !== void 0) {
             return renderFn(src, vars, stepFn);
@@ -113,9 +106,14 @@ ContentBaseNode = (function(_super) {
 
   ContentBaseNode.prototype.isContentNode = true;
 
-  ContentBaseNode.prototype.init = function(container) {
+  ContentBaseNode.prototype.init = function(parent) {
+    Object.defineProperties(this, {
+      parent: {
+        value: parent
+      }
+    });
     this.meta = {};
-    return this.ctx = this.initCtx(container != null ? container.ctx : void 0);
+    return this.ctx = this.initCtx(parent != null ? parent.ctx : void 0);
   };
 
   ContentBaseNode.prototype.initCtx = function(ctx_next) {
@@ -139,10 +137,10 @@ ContentBaseNode = (function(_super) {
     throw new Error("Subclass responsibility: " + this.constructor.name + "::visit()");
   };
 
-  ContentBaseNode.prototype.compositeWith = function(key, contentItem, container) {
+  ContentBaseNode.prototype.compositeWith = function(key, contentItem, parent) {
     var comp;
-    comp = new ContentComposite(container, key);
-    comp.addItem(this.key, this);
+    comp = new ContentComposite(parent, key);
+    comp.addItem(this.name, this);
     comp.addItem(key, contentItem);
     return comp;
   };
@@ -172,9 +170,9 @@ ContentItem = (function(_super) {
 
   ContentItem.prototype.kind = 'item';
 
-  function ContentItem(container, key) {
-    this.key = key;
-    this.init(container);
+  function ContentItem(parent, name) {
+    this.name = name;
+    this.init(parent);
   }
 
   ContentItem.prototype.initCtx = function(ctx_next) {
@@ -185,7 +183,7 @@ ContentItem = (function(_super) {
     if (keyPath == null) {
       keyPath = [];
     }
-    return visitor(this.kind, this, keyPath.concat([this.key]));
+    return visitor(this.kind, this, keyPath.concat([this.name]));
   };
 
   return ContentItem;
@@ -198,10 +196,10 @@ ContentComposite = (function(_super) {
 
   ContentComposite.prototype.kind = 'composite';
 
-  function ContentComposite(container, key) {
-    this.key = key;
+  function ContentComposite(parent, name) {
+    this.name = name;
     this.list = [];
-    this.init(container);
+    this.init(parent);
   }
 
   ContentComposite.prototype.addItem = function(key, item) {
@@ -212,7 +210,7 @@ ContentComposite = (function(_super) {
     return item;
   };
 
-  ContentComposite.prototype.compositeWith = function(key, contentItem, container) {
+  ContentComposite.prototype.compositeWith = function(key, contentItem, parent) {
     this.list.push(contentItem);
     return this;
   };
@@ -267,11 +265,11 @@ ContentTree = (function(_super) {
 
   ContentTree.prototype.kind = 'tree';
 
-  function ContentTree(container, key) {
-    this.key = key;
+  function ContentTree(parent, name) {
+    this.name = name;
     this.items = {};
-    this.init(container);
-    if (!this.key) {
+    this.init(parent);
+    if (!this.name) {
       throw new Error("Key must be valid " + this);
     }
   }
@@ -297,7 +295,7 @@ ContentTree = (function(_super) {
     if (keyPath == null) {
       keyPath = [];
     }
-    keyPath = keyPath.concat([this.key]);
+    keyPath = keyPath.concat([this.name]);
     res = visitor(this.kind, this, keyPath.slice());
     if (res === false) {
 
@@ -338,8 +336,8 @@ CtxTree = (function(_super) {
   CtxTree.prototype.initCtx = function(ctx_parent) {
     var ctx;
     if (ctx_parent != null) {
-      ctx = this.pushCtx(ctx_parent[this.key]);
-      return ctx_parent[this.key] = ctx;
+      ctx = this.pushCtx(ctx_parent[this.name]);
+      return ctx_parent[this.name] = ctx;
     } else {
       return {};
     }
@@ -367,8 +365,8 @@ ContentCollectionMixin = (function() {
     return this.pushCtx(ctx_next);
   };
 
-  ContentCollectionMixin.prototype.newContentEx = function(container, key) {
-    return new this.ContentItem(container, key);
+  ContentCollectionMixin.prototype.newContentEx = function(parent, key) {
+    return new this.ContentItem(parent, key);
   };
 
   ContentCollectionMixin.prototype.newContent = function(key) {
@@ -387,8 +385,8 @@ ContentCollectionMixin = (function() {
     return item;
   };
 
-  ContentCollectionMixin.prototype.newTreeEx = function(container, key) {
-    return new this.ContentTree(container, key);
+  ContentCollectionMixin.prototype.newTreeEx = function(parent, key) {
+    return new this.ContentTree(parent, key);
   };
 
   ContentCollectionMixin.prototype.newTree = function(key) {
@@ -399,8 +397,8 @@ ContentCollectionMixin = (function() {
     return this.addItem(key, this.newTreeEx(this, key));
   };
 
-  ContentCollectionMixin.prototype.newCtxTreeEx = function(container, key) {
-    return new this.CtxTree(container, key);
+  ContentCollectionMixin.prototype.newCtxTreeEx = function(parent, key) {
+    return new this.CtxTree(parent, key);
   };
 
   ContentCollectionMixin.prototype.newCtxTree = function(key) {

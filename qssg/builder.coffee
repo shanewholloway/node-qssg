@@ -21,11 +21,6 @@ class SiteBuilder
     if typeof vars is 'function'
       doneBuildFn = vars; vars = null
 
-    rootOutput = Object.create null,
-      rootPath: value: @rootPath, enumerable: true
-    rootVars = Object.create vars||null,
-      output: value: rootOutput
-
     trackerMap = {}
     fsTasks = qutil.invokeList.ordered()
     dirTasks = qutil.createTaskTracker =>
@@ -45,14 +40,15 @@ class SiteBuilder
       if not citem.render?
         return
 
-      output = Object.create rootOutput,
-        vkind: value: vkind
+      output = Object.create null,
         relPath: value: relPath, enumerable: true
         fullPath: value: fullPath
+        rootPath: value: @rootPath
         content: value: citem
 
-      vars = Object.create rootVars,
+      r_vars = Object.create vars,
         output: value: output, enumerable: true
+        item: value: citem, enumerable: true
 
       fsTasks.push (taskDone)=>
         @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
@@ -65,7 +61,7 @@ class SiteBuilder
             delete trackerMap[relPath]
             @renderAnswerEx(output, arguments...)
           trackerMap[relPath] = renderAnswer
-          citem.render(vars, renderAnswer)
+          citem.render(r_vars, renderAnswer)
 
       return true
 

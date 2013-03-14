@@ -11,12 +11,15 @@
 
 class Renderable
   bindRender: (entry)->
-    @render = @renderEntryFn.bind(@, entry) if entry?
+    if entry?
+      Object.defineProperties @,
+        render:value: @renderEntryFn.bind(@, entry)
     return @renderTasks()
   renderTasks: ->
     if not (tasks = @_renderTasks)?
       tasks = invokeList.ordered()
-      @_renderTasks = tasks
+      Object.defineProperties @,
+        _renderTasks:value:tasks
     return tasks
   addTemplate: (tmplFn, order)->
     if typeof tmplFn isnt 'function'
@@ -33,13 +36,9 @@ class Renderable
     vars = Object.create vars, content:value:source
     tmplFn(vars, answerFn)
 
-  extendVars: (vars={})->
-    return Object.create vars, ctx:{value:@ctx}, meta:{value:@meta}
-
   renderEntryFn: (entry, vars, answerFn)->
     try
       if @_renderTasks.length > 0
-        vars = @extendVars(vars)
         stepFn = @_renderTasks.iter (renderFn, err, src)->
           if not err? and renderFn isnt undefined
             renderFn(src, vars, stepFn)
@@ -60,9 +59,10 @@ class ContentBaseNode extends Renderable
     deps: get: -> @deps=[]
 
   isContentNode: true
-  init: (container)->
+  init: (parent)->
+    Object.defineProperties @, parent:value:parent
     @meta = {}
-    @ctx = @initCtx(container?.ctx)
+    @ctx = @initCtx(parent?.ctx)
 
   initCtx: (ctx_next)-> ctx_next || {}
   pushCtx: (ctx_next)->
@@ -73,9 +73,9 @@ class ContentBaseNode extends Renderable
   visit: (visitor, keyPath)->
     throw new Error("Subclass responsibility: #{@constructor.name}::visit()")
 
-  compositeWith: (key, contentItem, container)->
-    comp = new ContentComposite(container, key)
-    comp.addItem(@key, @)
+  compositeWith: (key, contentItem, parent)->
+    comp = new ContentComposite(parent, key)
+    comp.addItem(@name, @)
     comp.addItem(key, contentItem)
     return comp
 
@@ -91,21 +91,21 @@ class ContentBaseNode extends Renderable
 
 class ContentItem extends ContentBaseNode
   kind: 'item'
-  constructor: (container, @key)->
-    @init(container)
+  constructor: (parent, @name)->
+    @init(parent)
 
   initCtx: (ctx_next)-> ctx_next
   visit: (visitor, keyPath=[])->
-    visitor(@kind, @, keyPath.concat([@key]))
+    visitor(@kind, @, keyPath.concat([@name]))
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class ContentComposite extends ContentBaseNode
   kind: 'composite'
-  constructor: (container, @key)->
+  constructor: (parent, @name)->
     @list = []
-    @init(container)
+    @init(parent)
 
   addItem: (key, item)->
     if not item.isContentNode
@@ -114,7 +114,7 @@ class ContentComposite extends ContentBaseNode
     @list.push(item)
     return item
 
-  compositeWith: (key, contentItem, container)->
+  compositeWith: (key, contentItem, parent)->
     @list.push(contentItem)
     return @
 
@@ -139,10 +139,10 @@ class ContentRoot extends ContentComposite
 
 class ContentTree extends ContentBaseNode
   kind: 'tree'
-  constructor: (container, @key)->
+  constructor: (parent, @name)->
     @items = {}
-    @init(container)
-    if not @key
+    @init(parent)
+    if not @name
       throw new Error("Key must be valid #{@}")
 
   addItem: (key, item)->
@@ -156,7 +156,7 @@ class ContentTree extends ContentBaseNode
   getItem: (key)-> @items[key]
 
   visit: (visitor, keyPath=[])->
-    keyPath = keyPath.concat([@key])
+    keyPath = keyPath.concat([@name])
     res = visitor(@kind, @, keyPath.slice())
     if res is false
       # curtail walking items map
@@ -173,8 +173,8 @@ class CtxTree extends ContentTree
   isCtxTree: true
   initCtx: (ctx_parent)->
     if ctx_parent?
-      ctx = @pushCtx(ctx_parent[@key])
-      return ctx_parent[@key] = ctx
+      ctx = @pushCtx(ctx_parent[@name])
+      return ctx_parent[@name] = ctx
     else return {}
 
   adaptMatchKind: (matchKind)-> 'context'
@@ -188,8 +188,8 @@ class ContentCollectionMixin
 
   initCtx: (ctx_next)-> @pushCtx(ctx_next)
 
-  newContentEx: (container, key)->
-    new @.ContentItem(container, key)
+  newContentEx: (parent, key)->
+    new @.ContentItem(parent, key)
   newContent: (key)->
     @newContentEx(@, key)
   addContent: (key)->
@@ -199,15 +199,15 @@ class ContentCollectionMixin
       item = @addContent(key)
     return item
 
-  newTreeEx: (container, key)->
-    new @.ContentTree(container, key)
+  newTreeEx: (parent, key)->
+    new @.ContentTree(parent, key)
   newTree: (key)->
     @newTreeEx(@, key)
   addTree: (key)->
     @addItem key, @newTreeEx(@, key)
 
-  newCtxTreeEx: (container, key)->
-    new @.CtxTree(container, key)
+  newCtxTreeEx: (parent, key)->
+    new @.CtxTree(parent, key)
   newCtxTree: (key)->
     @newCtxTreeEx(@, key)
 

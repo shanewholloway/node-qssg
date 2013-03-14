@@ -19,23 +19,12 @@ SiteBuilder = (function() {
   }
 
   SiteBuilder.prototype.build = function(vars, doneBuildFn) {
-    var dirTasks, fsTasks, logStarted, logUnchanged, rootOutput, rootVars, tasks, tidUpdate, trackerMap,
+    var dirTasks, fsTasks, logStarted, logUnchanged, tasks, tidUpdate, trackerMap,
       _this = this;
     if (typeof vars === 'function') {
       doneBuildFn = vars;
       vars = null;
     }
-    rootOutput = Object.create(null, {
-      rootPath: {
-        value: this.rootPath,
-        enumerable: true
-      }
-    });
-    rootVars = Object.create(vars || null, {
-      output: {
-        value: rootOutput
-      }
-    });
     trackerMap = {};
     fsTasks = qutil.invokeList.ordered();
     dirTasks = qutil.createTaskTracker(function() {
@@ -50,7 +39,7 @@ SiteBuilder = (function() {
     logStarted = this.logStarted.bind(this);
     logUnchanged = this.logUnchanged.bind(this);
     return this.contentTree.visit(function(vkind, citem, keyPath) {
-      var fullPath, output, relPath;
+      var fullPath, output, r_vars, relPath;
       relPath = keyPath.join('/');
       fullPath = path.resolve(_this.rootPath, relPath);
       if (vkind === 'tree') {
@@ -59,10 +48,7 @@ SiteBuilder = (function() {
       if (citem.render == null) {
         return;
       }
-      output = Object.create(rootOutput, {
-        vkind: {
-          value: vkind
-        },
+      output = Object.create(null, {
         relPath: {
           value: relPath,
           enumerable: true
@@ -70,13 +56,20 @@ SiteBuilder = (function() {
         fullPath: {
           value: fullPath
         },
+        rootPath: {
+          value: _this.rootPath
+        },
         content: {
           value: citem
         }
       });
-      vars = Object.create(rootVars, {
+      r_vars = Object.create(vars, {
         output: {
           value: output,
+          enumerable: true
+        },
+        item: {
+          value: citem,
           enumerable: true
         }
       });
@@ -95,7 +88,7 @@ SiteBuilder = (function() {
             return _this.renderAnswerEx.apply(_this, [output].concat(__slice.call(arguments)));
           });
           trackerMap[relPath] = renderAnswer;
-          return citem.render(vars, renderAnswer);
+          return citem.render(r_vars, renderAnswer);
         }));
       });
       return true;
