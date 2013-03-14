@@ -12,12 +12,13 @@ qutil = require('./util')
 exports.pluginTypes = pluginTypes = {}
 
 class PluginCompositeTasks
+  loadSource: (entry, source, vars, callback)->
+    entry.read(callback)
   bindLoadSource: ->
-    pi = @plugins[0]
-    return (_, vars, callback)=>
-      if pi?.loadSource?
-        pi.loadSource(@entry, vars, callback)
-      else @entry.read callback
+    for pi in @plugins
+      if pi.loadSource?
+        return pi.loadSource.bind(pi, @entry)
+    return @loadSource.bind(@, @entry)
 
   bindPipelineFn: (tasks, ns)->
     return (source, vars, answerFn)=>

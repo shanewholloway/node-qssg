@@ -11,17 +11,20 @@ PluginCompositeTasks = (function() {
 
   function PluginCompositeTasks() {}
 
+  PluginCompositeTasks.prototype.loadSource = function(entry, source, vars, callback) {
+    return entry.read(callback);
+  };
+
   PluginCompositeTasks.prototype.bindLoadSource = function() {
-    var pi,
-      _this = this;
-    pi = this.plugins[0];
-    return function(_, vars, callback) {
-      if ((pi != null ? pi.loadSource : void 0) != null) {
-        return pi.loadSource(_this.entry, vars, callback);
-      } else {
-        return _this.entry.read(callback);
+    var pi, _i, _len, _ref;
+    _ref = this.plugins;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      pi = _ref[_i];
+      if (pi.loadSource != null) {
+        return pi.loadSource.bind(pi, this.entry);
       }
-    };
+    }
+    return this.loadSource.bind(this, this.entry);
   };
 
   PluginCompositeTasks.prototype.bindPipelineFn = function(tasks, ns) {

@@ -392,7 +392,7 @@ ModulePlugin = (function(_super) {
     return null;
   };
 
-  ModulePlugin.prototype.loadSource = function(entry, vars, callback) {
+  ModulePlugin.prototype.loadSource = function(entry, source, vars, callback) {
     return callback(null, '');
   };
 

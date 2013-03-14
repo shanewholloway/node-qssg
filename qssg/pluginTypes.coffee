@@ -199,7 +199,7 @@ class ModulePlugin extends BasicPlugin
     console.error("\nModule '#{entry.srcRelPath}' loading encountered an error")
     console.error(err.stack or err)
     null
-  loadSource: (entry, vars, callback)->
+  loadSource: (entry, source, vars, callback)->
     callback(null, '')
   loadModule: (entry)->
     try
