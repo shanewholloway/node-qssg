@@ -20,22 +20,29 @@ class PluginCompositeTasks
       else @entry.read callback
 
   bindPipelineFn: (tasks, ns)->
-    return (vars, answerFn)->
+    return (source, vars, answerFn)=>
       if ns?
         vars = Object.create(vars)
         vars[k]=v for k,v of ns
+      vars?.output?.plugins = @
       q = tasks.slice()
       stepFn = (err, src)->
         if not err? and (fn = q.shift())?
           try return fn(src, vars, stepFn)
           catch err then answerFn(err)
         else answerFn(err, src)
-      stepFn()
+      stepFn(null, source)
 
   bindRenderTasks: (tasks=[], allowStream)->
-    tasks.add -10, @bindLoadSource()
+    entry = @entry
+    pi_render_fn = (source, vars, callback)->
+      vars?.output?.pi_tip = @
+      try @render(entry, source, vars, callback)
+      catch err then callback(err)
+        
+    tasks.push @bindLoadSource()
     for pi in @plugins
-      tasks.push pi.render.bind(pi, @entry)
+      tasks.push pi_render_fn.bind(pi)
     return tasks
   bindRenderFn: (ns)->
     @bindPipelineFn @bindRenderTasks(), ns
@@ -48,7 +55,7 @@ class PluginCompositeTasks
       citem.bindRender pi.renderStream.bind(pi, @entry)
     else
       citem.bindRenderComposed()
-      @bindRenderTasks citem.renderTasks()
+      citem.renderTasks().push @bindRenderFn()
     return citem
 
   bindTemplateFn: (ns)->
@@ -65,9 +72,15 @@ class PluginCompositeTasks
 
 
   bindContextTasks: (tasks=[])->
+    entry = @entry
+    pi_context_fn = (source, vars, callback)->
+      vars?.output?.pi_tip = @
+      try @context(entry, source, vars, callback)
+      catch err then callback(err)
+
     tasks.push @bindLoadSource()
     for pi in @plugins
-      tasks.push pi.context.bind(pi, @entry)
+      tasks.push pi_context_fn.bind(pi)
     return tasks
   bindContextFn: (ns)->
     @bindPipelineFn @bindContextTasks(), ns
@@ -109,7 +122,7 @@ class KindBasePlugin extends PluginCompositeTasks
         @[k] = v
     return @
 
-  inspect: -> "«#{@constructor.name}»"
+  inspect: -> "«#{@constructor.name}: [#{@plugins.join(', ')}]»"
   toString: -> @inspect()
 
   composePlugin: (plugins, entry, matchMethod)->

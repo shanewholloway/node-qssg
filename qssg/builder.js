@@ -108,7 +108,7 @@ SiteBuilder = (function(_super) {
       return this.logProblem(err, rx);
     }
     if (what == null) {
-      return this.logEmpty(err, rx);
+      return this.logEmpty(rx);
     }
     mtime = (_ref = rx.content) != null ? _ref.mtime : void 0;
     if ((mtime != null) && rx.mtime && mtime <= rx.mtime) {
@@ -142,6 +142,9 @@ SiteBuilder = (function(_super) {
     var rxp;
     if (!this.emit('problem', err, rxp = this.logPathsFor(rx))) {
       console.error("ERROR['" + rxp.src + "'] :: " + err);
+      if (rx.plugins != null) {
+        console.error("  plugins: " + rx.plugins);
+      }
       if (err.stack) {
         console.error(err.stack);
       }

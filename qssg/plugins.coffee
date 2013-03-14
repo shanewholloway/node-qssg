@@ -26,6 +26,8 @@ class PluginMap extends qpluginMap.PluginBaseMap
 
   add: (plugins...)->
     for pi in plugins
+      if typeof pi is 'function'
+        pi = new pi()
       pi.registerPluginOn(@)
     return @
 

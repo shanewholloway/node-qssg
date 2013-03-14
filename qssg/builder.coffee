@@ -68,7 +68,7 @@ class SiteBuilder extends events.EventEmitter
   fs: qutil.fs
   renderAnswerEx: (rx, err, what)->
     return @logProblem(err, rx) if err?
-    return @logEmpty(err, rx) if not what?
+    return @logEmpty(rx) if not what?
 
     mtime = rx.content?.mtime
     if mtime? and rx.mtime and mtime<=rx.mtime
@@ -91,6 +91,8 @@ class SiteBuilder extends events.EventEmitter
   logProblem: (err, rx)->
     if not @emit('problem', err, rxp=@logPathsFor(rx))
       console.error "ERROR['#{rxp.src}'] :: #{err}"
+      if rx.plugins?
+        console.error "  plugins: #{rx.plugins}"
       console.error err.stack if err.stack
     return
   logChanged: (rx)->

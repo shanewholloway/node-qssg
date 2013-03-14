@@ -32,6 +32,9 @@ PluginMap = (function(_super) {
     plugins = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
     for (_i = 0, _len = plugins.length; _i < _len; _i++) {
       pi = plugins[_i];
+      if (typeof pi === 'function') {
+        pi = new pi();
+      }
       pi.registerPluginOn(this);
     }
     return this;
