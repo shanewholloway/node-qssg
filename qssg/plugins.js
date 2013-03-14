@@ -108,10 +108,10 @@ PluginMap = (function(_super) {
 
   PluginMap.prototype.addFileType = function(obj) {
     if (obj.compile != null) {
-      return this.addPluginTypeEx('compile_render', arguments);
+      return this.addPluginTypeEx('compile', arguments);
     }
     if (obj.render != null) {
-      return this.addPluginTypeEx('rendered', arguments);
+      return this.addPluginTypeEx('render', arguments);
     }
     throw new Error("Unable to find a `compile()` or `render()` method");
   };
@@ -121,11 +121,11 @@ PluginMap = (function(_super) {
   };
 
   PluginMap.prototype.addCompiledType = function() {
-    return this.addPluginTypeEx('compiled', arguments);
+    return this.addPluginTypeEx('compile', arguments);
   };
 
   PluginMap.prototype.addRenderedType = function() {
-    return this.addPluginTypeEx('rendered', arguments);
+    return this.addPluginTypeEx('render', arguments);
   };
 
   PluginMap.prototype.addModuleType = function() {

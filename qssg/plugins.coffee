@@ -72,14 +72,14 @@ class PluginMap extends qpluginMap.PluginBaseMap
 
   addFileType: (obj)->
     if obj.compile?
-      return @addPluginTypeEx('compile_render', arguments)
+      return @addPluginTypeEx('compile', arguments)
     if obj.render?
-      return @addPluginTypeEx('rendered', arguments)
+      return @addPluginTypeEx('render', arguments)
     throw new Error("Unable to find a `compile()` or `render()` method")
 
   addStaticType: -> @addPluginTypeEx('static', arguments)
-  addCompiledType: -> @addPluginTypeEx('compiled', arguments)
-  addRenderedType: -> @addPluginTypeEx('rendered', arguments)
+  addCompiledType: -> @addPluginTypeEx('compile', arguments)
+  addRenderedType: -> @addPluginTypeEx('render', arguments)
   addModuleType: -> @addPluginTypeEx('module', arguments)
 
   addDefaultPlugins: ->

@@ -135,7 +135,7 @@ exports.StaticPlugin = StaticPlugin
 
 #~ Compiled & Rendered Plugins ~~~~~~~~~~~~~~~~~~~~~~
 
-class RenderedPlugin extends BasicPlugin
+class RenderPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
   context: (entry, source, vars, callback)->
     @render(entry, source, vars, callback)
@@ -145,30 +145,28 @@ class RenderedPlugin extends BasicPlugin
     @compile entry, source, vars, (err, renderFn)->
       renderFn(vars, callback)
 
-pluginTypes.rendered = RenderedPlugin
-exports.RenderedPlugin = RenderedPlugin
+pluginTypes.render = RenderPlugin
+exports.RenderPlugin = RenderPlugin
 
 
-class CompiledPlugin extends BasicPlugin
-  rename: BasicPlugin::renameForFormat
-  render: (entry, source, vars, callback)->
-    @notImplemented('render', entry, callback)
+class CompilePlugin extends RenderPlugin
   context: (entry, source, vars, callback)->
     if not @compile?
       return @notImplemented('compile', entry, callback)
     @compile(entry, source, vars, callback)
 
-pluginTypes.compiled = CompiledPlugin
-exports.CompiledPlugin = CompiledPlugin
+pluginTypes.compile = CompilePlugin
+exports.CompilePlugin = CompilePlugin
 
-class CompileRenderPlugin extends BasicPlugin
+
+class CompileOnlyPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  render: RenderedPlugin::render
-  context: CompiledPlugin::context
+  context: CompilePlugin::context
+  render: (entry, source, vars, callback)->
+    @notImplemented('render', entry, callback)
 
-pluginTypes.compile_render = CompileRenderPlugin
-exports.CompileRenderPlugin = CompileRenderPlugin
-
+pluginTypes.compile_only = CompileOnlyPlugin
+exports.CompileOnlyPlugin = CompileOnlyPlugin
 
 #~ Node.js provided plugin functionality ~~~~~~~~~~~~
 
