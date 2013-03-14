@@ -86,6 +86,9 @@ MatchEntry = (function() {
       src: {
         value: walkEntry
       },
+      srcExt: {
+        value: this.ext.slice()
+      },
       baseTree: {
         value: baseTree
       },
@@ -154,15 +157,18 @@ MatchEntry = (function() {
   };
 
   MatchEntry.prototype._setContent = function(content, contentTree) {
-    Object.defineProperty(this, 'content', {
+    var prop;
+    prop = {};
+    prop.content = {
       value: content,
       enumerable: true
-    });
+    };
     if (contentTree != null) {
-      Object.defineProperty(content, 'tree', {
+      prop.tree = {
         value: contentTree
-      });
+      };
     }
+    Object.defineProperties(this, prop);
     return content;
   };
 
@@ -205,14 +211,14 @@ MatchEntry = (function() {
     return this._setContent(this.baseTree.getContent(key));
   };
 
-  MatchEntry.prototype.touch = function(arg) {
-    if (arg == null) {
-      arg = true;
+  MatchEntry.prototype.bindContent = function(key) {
+    var content;
+    if (key == null) {
+      key = this.name;
     }
-    if (arg === false) {
-      arg = this.stat.mtime;
-    }
-    return this.content.touch(arg);
+    content = this.getContent(this.name);
+    content.updateMetaFromEntry(this);
+    return content;
   };
 
   MatchEntry.prototype.getWalkContentTree = function() {

@@ -19,15 +19,16 @@ class PluginCompositeTasks
         pi.loadSource(@entry, vars, callback)
       else @entry.read callback
 
-  bindTaskFn: (tasks, ns)->
-    return (vars, answerFn)=>
+  bindPipelineFn: (tasks, ns)->
+    return (vars, answerFn)->
       if ns?
         vars = Object.create(vars)
         vars[k]=v for k,v of ns
       q = tasks.slice()
       stepFn = (err, src)->
         if not err? and (fn = q.shift())?
-          fn(src, vars, stepFn)
+          try return fn(src, vars, stepFn)
+          catch err then answerFn(err)
         else answerFn(err, src)
       stepFn()
 
@@ -37,9 +38,9 @@ class PluginCompositeTasks
       tasks.push pi.render.bind(pi, @entry)
     return tasks
   bindRenderFn: (ns)->
-    @bindTaskFn @bindRenderTasks(), ns
+    @bindPipelineFn @bindRenderTasks(), ns
   bindRenderContent: ->
-    citem = @entry.getContent()
+    citem = @entry.bindContent()
     for pi in @plugins
       pi.touchContent?(@entry, citem)
 
@@ -69,7 +70,7 @@ class PluginCompositeTasks
       tasks.push pi.context.bind(pi, @entry)
     return tasks
   bindContextFn: (ns)->
-    @bindTaskFn @bindContextTasks(), ns
+    @bindPipelineFn @bindContextTasks(), ns
 
   setContext: (vars={}, callback)->
     if typeof vars is 'function'

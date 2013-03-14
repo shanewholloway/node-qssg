@@ -7,11 +7,13 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
+events = require('events')
+
 path = require('path')
 qutil = require('./util')
 {inspect} = require('util')
 
-class SiteBuilder
+class SiteBuilder extends events.EventEmitter
   fsTaskQueue: qutil.taskQueue(35)
   constructor: (rootPath, @contentTree)->
     @rootPath = path.resolve(rootPath)
@@ -29,8 +31,6 @@ class SiteBuilder
       clearInterval(tidUpdate); doneBuildFn()
     tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
 
-    logStarted = @logStarted.bind(@)
-    logUnchanged = @logUnchanged.bind(@)
     @contentTree.visit (vkind, citem, keyPath)=>
       relPath = keyPath.join('/')
       fullPath = path.resolve(@rootPath, relPath)
@@ -40,68 +40,72 @@ class SiteBuilder
       if not citem.render?
         return
 
-      output = Object.create null,
+      rx = Object.create null,
         relPath: value: relPath, enumerable: true
         fullPath: value: fullPath
         rootPath: value: @rootPath
         content: value: citem
 
-      r_vars = Object.create vars,
-        output: value: output, enumerable: true
+      rx_vars = Object.create vars,
+        output: value: rx, enumerable: true
         item: value: citem, enumerable: true
 
       fsTasks.push (taskDone)=>
-        @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
+        @fs.stat rx.fullPath, taskDone.wrap (err, stat)=>
           if stat?
-            output.mtime = stat.mtime
+            rx.mtime = stat.mtime
             if citem.mtime? and citem.mtime < stat.mtime
-              return logUnchanged(output)
-          logStarted(output)
+              return @logUnchanged(rx)
+          @logStart(rx)
           renderAnswer = tasks =>
             delete trackerMap[relPath]
-            @renderAnswerEx(output, arguments...)
+            @renderAnswerEx(rx, arguments...)
           trackerMap[relPath] = renderAnswer
-          citem.render(r_vars, renderAnswer)
+          citem.render(rx_vars, renderAnswer)
 
       return true
 
   fs: qutil.fs
   renderAnswerEx: (rx, err, what)->
-    if err? and not @logError(err, rx)
-      return
+    return @logProblem(err, rx) if err?
+    return @logEmpty(err, rx) if not what?
 
-    if what?
-      mtime = rx.content?.mtime
-      if mtime? and rx.mtime and mtime<=rx.mtime
-        @logUnchanged(rx)
-      else
-        @fsTaskQueue.do =>
-          if what.pipe?
-            what.pipe(@fs.createWriteStream(rx.fullPath))
-          else @fs.writeFile(rx.fullPath, what)
-          @logChanged(rx)
+    mtime = rx.content?.mtime
+    if mtime? and rx.mtime and mtime<=rx.mtime
+      return @logUnchanged(rx)
+
+    @fsTaskQueue.do =>
+      if what.pipe?
+        what.pipe(@fs.createWriteStream(rx.fullPath))
+      else @fs.writeFile(rx.fullPath, what)
+      @logChanged(rx)
     return
 
   logPathsFor: (rx)->
-    dst: path.relative @cwd, rx.relPath
-    src: path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
-  logStarted: (rx)->
-    #paths = @logPathsFor(rx)
-    #console.error "start['#{paths.src}'] -- '#{paths.dst}'"
+    src:path.relative @cwd, rx.content?.meta.srcPath or '??/'+rx.relPath
+    rx:rx, dst:path.relative @cwd, rx.fullPath
+  logStart: (rx)->
+    @emit('start', rxp=@logPathsFor(rx))
+    #console.log "start['#{rxp.src}'] -- '#{rxp.dst}'"
     return
-  logError: (err, rx)->
-    paths = @logPathsFor(rx)
-    console.error "ERROR['#{paths.src}'] :: #{err}"
+  logProblem: (err, rx)->
+    if not @emit('problem', err, rxp=@logPathsFor(rx))
+      console.error "ERROR['#{rxp.src}'] :: #{err}"
+      console.error err.stack if err.stack
     return
   logChanged: (rx)->
-    paths = @logPathsFor(rx)
-    console.error "WRITE['#{paths.src}'] -- '#{paths.dst}'"
+    if not @emit('changed', rxp=@logPathsFor(rx))
+      console.log "write['#{rxp.src}'] -- '#{rxp.dst}'"
     return
   logUnchanged: (rx)->
-    #dstPath = path.relative @cwd, rx.relPath
-    #srcPath = path.relative @cwd, rx.content?.entry?.srcPath || rx.relPath
-    #console.error "unchanged['#{srcPath}'] -- '#{dstPath}'"
+    @emit('unchanged', rxp=@logPathsFor(rx))
+    #console.log "unchanged['#{srcPath}'] -- '#{dstPath}'"
     return
+  logEmpty: (rx)->
+    @emit('empty', rxp=@logPathsFor(rx))
+    #console.log "EMPTY['#{rxp.src}'] -- '#{rxp.dst}'"
+    return
+  #emit: ->
 
   logTasksUpdate: (tasks, trackerMap)->
     console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"

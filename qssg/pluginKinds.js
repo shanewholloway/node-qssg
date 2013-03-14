@@ -11,8 +11,20 @@ PluginCompositeTasks = (function() {
 
   function PluginCompositeTasks() {}
 
-  PluginCompositeTasks.prototype.bindTaskFn = function(tasks, ns) {
-    var _this = this;
+  PluginCompositeTasks.prototype.bindLoadSource = function() {
+    var pi,
+      _this = this;
+    pi = this.plugins[0];
+    return function(_, vars, callback) {
+      if ((pi != null ? pi.loadSource : void 0) != null) {
+        return pi.loadSource(_this.entry, vars, callback);
+      } else {
+        return _this.entry.read(callback);
+      }
+    };
+  };
+
+  PluginCompositeTasks.prototype.bindPipelineFn = function(tasks, ns) {
     return function(vars, answerFn) {
       var k, q, stepFn, v;
       if (ns != null) {
@@ -26,38 +38,53 @@ PluginCompositeTasks = (function() {
       stepFn = function(err, src) {
         var fn;
         if ((err == null) && ((fn = q.shift()) != null)) {
-          return fn(src, vars, stepFn);
+          try {
+            return fn(src, vars, stepFn);
+          } catch (err) {
+            return answerFn(err);
+          }
         } else {
           return answerFn(err, src);
         }
       };
-      return _this.entry.read(stepFn);
+      return stepFn();
     };
   };
 
-  PluginCompositeTasks.prototype.bindRenderTasks = function(tasks) {
+  PluginCompositeTasks.prototype.bindRenderTasks = function(tasks, allowStream) {
     var pi, _i, _len, _ref;
     if (tasks == null) {
       tasks = [];
     }
+    tasks.add(-10, this.bindLoadSource());
     _ref = this.plugins;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       pi = _ref[_i];
-      if (pi.render != null) {
-        tasks.push(pi.render.bind(pi, this.entry));
-      }
+      tasks.push(pi.render.bind(pi, this.entry));
     }
     return tasks;
   };
 
   PluginCompositeTasks.prototype.bindRenderFn = function(ns) {
-    return this.bindTaskFn(this.bindRenderTasks(), ns);
+    return this.bindPipelineFn(this.bindRenderTasks(), ns);
   };
 
   PluginCompositeTasks.prototype.bindRenderContent = function() {
-    var citem;
-    citem = this.entry.getContent();
-    this.bindRenderTasks(citem.bindRender(this.entry));
+    var citem, pi, _i, _len, _ref;
+    citem = this.entry.bindContent();
+    _ref = this.plugins;
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      pi = _ref[_i];
+      if (typeof pi.touchContent === "function") {
+        pi.touchContent(this.entry, citem);
+      }
+    }
+    if (this.plugins.length === 1 && (pi.renderStream != null)) {
+      citem.bindRender(pi.renderStream.bind(pi, this.entry));
+    } else {
+      citem.bindRenderComposed();
+      this.bindRenderTasks(citem.renderTasks());
+    }
     return citem;
   };
 
@@ -93,18 +120,17 @@ PluginCompositeTasks = (function() {
     if (tasks == null) {
       tasks = [];
     }
+    tasks.push(this.bindLoadSource());
     _ref = this.plugins;
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       pi = _ref[_i];
-      if (pi.context != null) {
-        tasks.push(pi.context.bind(pi, this.entry));
-      }
+      tasks.push(pi.context.bind(pi, this.entry));
     }
     return tasks;
   };
 
   PluginCompositeTasks.prototype.bindContextFn = function(ns) {
-    return this.bindTaskFn(this.bindContextTasks(), ns);
+    return this.bindPipelineFn(this.bindContextTasks(), ns);
   };
 
   PluginCompositeTasks.prototype.setContext = function(vars, callback) {

@@ -9,15 +9,17 @@ Renderable = (function() {
 
   function Renderable() {}
 
-  Renderable.prototype.bindRender = function(entry) {
-    if (entry != null) {
-      Object.defineProperties(this, {
-        render: {
-          value: this.renderEntryFn.bind(this, entry)
-        }
-      });
-    }
-    return this.renderTasks();
+  Renderable.prototype.bindRender = function(renderFn) {
+    Object.defineProperties(this, {
+      render: {
+        value: renderFn
+      }
+    });
+    return this;
+  };
+
+  Renderable.prototype.bindRenderComposed = function() {
+    return this.bindRender(this.renderComposed);
   };
 
   Renderable.prototype.renderTasks = function() {
@@ -58,22 +60,21 @@ Renderable = (function() {
     return tmplFn(vars, answerFn);
   };
 
-  Renderable.prototype.renderEntryFn = function(entry, vars, answerFn) {
-    var stepFn, _ref;
+  Renderable.prototype.renderComposed = function(vars, answerFn) {
+    var stepFn;
     try {
-      if (this._renderTasks.length > 0) {
-        stepFn = this._renderTasks.iter(function(renderFn, err, src) {
-          if ((err == null) && renderFn !== void 0) {
+      stepFn = this._renderTasks.iter(function(renderFn, err, src) {
+        if ((err == null) && renderFn !== void 0) {
+          try {
             return renderFn(src, vars, stepFn);
-          } else {
-            return answerFn(err, src);
+          } catch (err) {
+            return answerFn(err);
           }
-        });
-        return entry.read(stepFn);
-      } else {
-        this.touch((_ref = entry.stat) != null ? _ref.mtime : void 0);
-        return answerFn(null, entry.readStream());
-      }
+        } else {
+          return answerFn(err, src);
+        }
+      });
+      return stepFn();
     } catch (err) {
       return answerFn(err);
     }
@@ -91,19 +92,6 @@ ContentBaseNode = (function(_super) {
     return ContentBaseNode.__super__.constructor.apply(this, arguments);
   }
 
-  Object.defineProperties(ContentBaseNode.prototype, {
-    dependencies: {
-      get: function() {
-        return this.deps;
-      }
-    },
-    deps: {
-      get: function() {
-        return this.deps = [];
-      }
-    }
-  });
-
   ContentBaseNode.prototype.isContentNode = true;
 
   ContentBaseNode.prototype.init = function(parent) {
@@ -114,6 +102,11 @@ ContentBaseNode = (function(_super) {
     });
     this.meta = {};
     return this.ctx = this.initCtx(parent != null ? parent.ctx : void 0);
+  };
+
+  ContentBaseNode.prototype.updateMetaFromEntry = function(entry) {
+    this.meta.entry = entry;
+    return this.meta.srcPath = entry.srcPath;
   };
 
   ContentBaseNode.prototype.initCtx = function(ctx_next) {

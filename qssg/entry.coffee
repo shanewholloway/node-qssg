@@ -38,6 +38,7 @@ class MatchEntry
 
     Object.defineProperties @,
       src: value: walkEntry
+      srcExt: value: @ext.slice()
       baseTree: value: baseTree
       pluginMap: value: pluginMap
 
@@ -70,11 +71,10 @@ class MatchEntry
   #~ content/output related
 
   _setContent: (content, contentTree)->
-    Object.defineProperty @, 'content',
-      value: content, enumerable: true
-    if contentTree?
-      Object.defineProperty content, 'tree',
-        value: contentTree
+    prop = {}
+    prop.content = value:content, enumerable:true
+    prop.tree = value:contentTree if contentTree?
+    Object.defineProperties @, prop
     return content
 
   newCtxTree: (key=@name)->
@@ -93,6 +93,10 @@ class MatchEntry
   getContent: (key=@name)->
     return @content if @content?
     return @_setContent @baseTree.getContent(key)
+  bindContent: (key=@name)->
+    content = @getContent(@name)
+    content.updateMetaFromEntry(@)
+    return content
 
   getWalkContentTree: -> @content?.tree || @baseTree
 

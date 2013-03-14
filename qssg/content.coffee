@@ -40,7 +40,8 @@ class Renderable
     try
       stepFn = @_renderTasks.iter (renderFn, err, src)->
         if not err? and renderFn isnt undefined
-          renderFn(src, vars, stepFn)
+          try renderFn(src, vars, stepFn)
+          catch err then answerFn(err)
         else answerFn(err, src)
       stepFn()
     catch err
@@ -49,15 +50,15 @@ class Renderable
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class ContentBaseNode extends Renderable
-  Object.defineProperties @.prototype,
-    dependencies: get: -> @deps
-    deps: get: -> @deps=[]
-
   isContentNode: true
   init: (parent)->
     Object.defineProperties @, parent:value:parent
     @meta = {}
     @ctx = @initCtx(parent?.ctx)
+
+  updateMetaFromEntry: (entry)->
+    @meta.entry = entry
+    @meta.srcPath = entry.srcPath
 
   initCtx: (ctx_next)-> ctx_next || {}
   pushCtx: (ctx_next)->
