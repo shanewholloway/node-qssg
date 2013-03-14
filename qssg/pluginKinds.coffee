@@ -12,6 +12,13 @@ qutil = require('./util')
 exports.pluginTypes = pluginTypes = {}
 
 class PluginCompositeTasks
+  bindLoadSource: ->
+    pi = @plugins[0]
+    return (_, vars, callback)=>
+      if pi?.loadSource?
+        pi.loadSource(@entry, vars, callback)
+      else @entry.read callback
+
   bindTaskFn: (tasks, ns)->
     return (vars, answerFn)=>
       if ns?
@@ -22,19 +29,25 @@ class PluginCompositeTasks
         if not err? and (fn = q.shift())?
           fn(src, vars, stepFn)
         else answerFn(err, src)
-      @entry.read(stepFn)
+      stepFn()
 
-
-  bindRenderTasks: (tasks=[])->
+  bindRenderTasks: (tasks=[], allowStream)->
+    tasks.add -10, @bindLoadSource()
     for pi in @plugins
-      if pi.render?
-        tasks.push pi.render.bind(pi, @entry)
+      tasks.push pi.render.bind(pi, @entry)
     return tasks
   bindRenderFn: (ns)->
     @bindTaskFn @bindRenderTasks(), ns
   bindRenderContent: ->
     citem = @entry.getContent()
-    @bindRenderTasks citem.bindRender(@entry)
+    for pi in @plugins
+      pi.touchContent?(@entry, citem)
+
+    if @plugins.length is 1 and pi.renderStream?
+      citem.bindRender pi.renderStream.bind(pi, @entry)
+    else
+      citem.bindRenderComposed()
+      @bindRenderTasks citem.renderTasks()
     return citem
 
   bindTemplateFn: (ns)->
@@ -51,9 +64,9 @@ class PluginCompositeTasks
 
 
   bindContextTasks: (tasks=[])->
+    tasks.push @bindLoadSource()
     for pi in @plugins
-      if pi.context?
-        tasks.push pi.context.bind(pi, @entry)
+      tasks.push pi.context.bind(pi, @entry)
     return tasks
   bindContextFn: (ns)->
     @bindTaskFn @bindContextTasks(), ns

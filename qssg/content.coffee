@@ -10,11 +10,11 @@
 {invokeList} = require('./util')
 
 class Renderable
-  bindRender: (entry)->
-    if entry?
-      Object.defineProperties @,
-        render:value: @renderEntryFn.bind(@, entry)
-    return @renderTasks()
+  bindRender: (renderFn)->
+    Object.defineProperties @, render:value:renderFn
+    return @
+  bindRenderComposed: ->
+    @bindRender @renderComposed
   renderTasks: ->
     if not (tasks = @_renderTasks)?
       tasks = invokeList.ordered()
@@ -36,18 +36,13 @@ class Renderable
     vars = Object.create vars, content:value:source
     tmplFn(vars, answerFn)
 
-  renderEntryFn: (entry, vars, answerFn)->
+  renderComposed: (vars, answerFn)->
     try
-      if @_renderTasks.length > 0
-        stepFn = @_renderTasks.iter (renderFn, err, src)->
-          if not err? and renderFn isnt undefined
-            renderFn(src, vars, stepFn)
-          else answerFn(err, src)
-        entry.read(stepFn)
-
-      else # simple static content
-        @touch(entry.stat?.mtime)
-        answerFn(null, entry.readStream())
+      stepFn = @_renderTasks.iter (renderFn, err, src)->
+        if not err? and renderFn isnt undefined
+          renderFn(src, vars, stepFn)
+        else answerFn(err, src)
+      stepFn()
     catch err
       answerFn(err)
 

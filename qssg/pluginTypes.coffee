@@ -70,11 +70,15 @@ class CommonPluginBase
   adapt: (entry)-> @
   rename: (entry)-> entry
 
+  render: (entry, source, vars, callback)->
+    @notImplemented('render', entry, callback)
+  context: (entry, source, vars, callback)->
+    @notImplemented('context', entry, callback)
+
   if 0
-    render: (entry, source, vars, callback)->
-      @notImplemented('render', entry, callback)
-    context: (entry, source, vars, callback)->
-      @notImplemented('context', entry, callback)
+    touchContent: (entry, citem)->
+    renderStream: (entry, vars, callback)->
+      @notImplemented('renderStream', entry, callback)
 
 exports.CommonPluginBase = CommonPluginBase
 
@@ -115,6 +119,15 @@ class StaticPlugin extends CommonPluginBase
         pluginMap.addPluginForKeys(@, ext.slice(1), ext.slice(0,1))
       else
         console.warn "Ignoreing invalid static extension #{ext}"
+
+  touchContent: (entry, citem)->
+    citem.touch(entry.stat.mtime)
+  renderStream: (entry, vars, callback)->
+    callback null, entry.readStream()
+  render: (entry, source, vars, callback)->
+    callback null, source
+  context: (entry, source, vars, callback)->
+    callback null, source
 
 pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
@@ -188,6 +201,8 @@ class ModulePlugin extends BasicPlugin
     console.error("\nModule '#{entry.srcRelPath}' loading encountered an error")
     console.error(err.stack or err)
     null
+  loadSource: (entry, vars, callback)->
+    callback(null, '')
   loadModule: (entry)->
     try
       mod = entry.loadModule()

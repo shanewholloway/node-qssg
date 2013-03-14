@@ -94,10 +94,6 @@ class MatchEntry
     return @content if @content?
     return @_setContent @baseTree.getContent(key)
 
-  touch: (arg=true)->
-    arg = @stat.mtime if arg is false
-    @content.touch(arg)
-
   getWalkContentTree: -> @content?.tree || @baseTree
 
   #~ accessing content of entry

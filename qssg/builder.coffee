@@ -54,7 +54,7 @@ class SiteBuilder
         @fs.stat output.fullPath, taskDone.wrap (err, stat)=>
           if stat?
             output.mtime = stat.mtime
-            if citem.mtime? and citem.mtime > stat.mtime
+            if citem.mtime? and citem.mtime < stat.mtime
               return logUnchanged(output)
           logStarted(output)
           renderAnswer = tasks =>
