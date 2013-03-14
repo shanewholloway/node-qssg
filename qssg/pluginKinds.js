@@ -206,10 +206,14 @@ KindBasePlugin = (function(_super) {
     }
     for (i = _i = 0, _len = plugins.length; _i < _len; i = ++_i) {
       pi = plugins[i];
-      pi = pi.adapt(entry);
-      entry = pi.rename(entry);
-      plugins[i] = pi;
+      plugins[i] = pi = pi.adapt(entry);
+      if (pi != null) {
+        entry = pi.rename(entry);
+      }
     }
+    plugins = plugins.filter(function(e) {
+      return e != null;
+    });
     self = Object.create(this, {
       plugins: {
         value: plugins

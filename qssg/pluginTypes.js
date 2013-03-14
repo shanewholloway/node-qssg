@@ -166,7 +166,7 @@ BasicPlugin = (function(_super) {
   };
 
   BasicPlugin.prototype.registerPluginOn = function(pluginMap) {
-    return pluginMap.addPluginForExtIO(this, this.ext, this.intput, this.output);
+    return pluginMap.addPluginForExtIO(this, this.ext, this.input, this.output);
   };
 
   return BasicPlugin;
@@ -200,7 +200,7 @@ StaticPlugin = (function(_super) {
 
   StaticPlugin.prototype.registerPluginOn = function(pluginMap) {
     var ext, _i, _len, _ref, _results;
-    pluginMap.addPluginForExtIO(this, this.ext, this.intput, this.output);
+    pluginMap.addPluginForExtIO(this, this.ext, this.input, this.output);
     _ref = this.extList || [];
     _results = [];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
@@ -354,15 +354,10 @@ ModulePlugin = (function(_super) {
   ModulePlugin.prototype.rename = BasicPlugin.prototype.renameForFormat;
 
   ModulePlugin.prototype.adapt = function(entry) {
-    var mod, self;
-    if (!this.accept(entry)) {
-      return;
-    }
-    nsMod.host = self = Object.create(this);
-    mod = self.loadModule(entry, nsMod);
-    if ((mod != null ? mod.adapt : void 0) != null) {
-      return mod.adapt.call(self, entry);
-    } else {
+    var self;
+    if (this.accept(entry)) {
+      self = Object.create(this);
+      self.loadModule(entry);
       return self;
     }
   };
@@ -385,18 +380,16 @@ ModulePlugin = (function(_super) {
       mod = entry.loadModule();
       return this.initModule(mod, entry);
     } catch (err) {
-      return this.error(err);
+      this.error(err, entry);
     }
   };
 
   ModulePlugin.prototype.initModule = function(mod, entry) {
     var k, v;
-    if (mod.initPlugin == null) {
-      mod = (typeof mod.initPlugin === "function" ? mod.initPlugin(this, entry) : void 0) || mod;
-    }
+    mod = (typeof mod.initPlugin === "function" ? mod.initPlugin(this, entry) : void 0) || mod;
     for (k in mod) {
       v = mod[k];
-      self[k] = v;
+      this[k] = v;
     }
     return mod;
   };

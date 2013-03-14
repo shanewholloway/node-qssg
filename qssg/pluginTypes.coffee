@@ -89,7 +89,7 @@ class BasicPlugin extends CommonPluginBase
     return entry
 
   registerPluginOn: (pluginMap)->
-    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
+    pluginMap.addPluginForExtIO(@, @ext, @input, @output)
 
 exports.BasicPlugin = BasicPlugin
 
@@ -106,7 +106,7 @@ class StaticPlugin extends CommonPluginBase
     return @
 
   registerPluginOn: (pluginMap)->
-    pluginMap.addPluginForExtIO(@, @ext, @intput, @output)
+    pluginMap.addPluginForExtIO(@, @ext, @input, @output)
     for ext in @extList or []
       if ext.length is 1
         pluginMap.addPluginForKeys(@, ext)
@@ -178,13 +178,10 @@ class ModulePlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
 
   adapt: (entry)->
-    return if not @accept(entry)
-
-    nsMod.host = self = Object.create(@)
-    mod = self.loadModule(entry, nsMod)
-    if mod?.adapt?
-      return mod.adapt.call(self, entry)
-    else return self
+    if @accept(entry)
+      self = Object.create(@)
+      self.loadModule(entry)
+      return self
 
   accept: (entry)-> not entry.ext.some (e)-> e.match(/\d/)
   error: (err, entry)->
@@ -196,11 +193,10 @@ class ModulePlugin extends BasicPlugin
       mod = entry.loadModule()
       return @initModule(mod, entry)
     catch err
-      return @error(err)
+      @error(err, entry); return
   initModule: (mod, entry)->
-    if not mod.initPlugin?
-      mod = mod.initPlugin?(@, entry) || mod
-    self[k] = v for k,v of mod
+    mod = mod.initPlugin?(@, entry) || mod
+    @[k] = v for k,v of mod
     return mod
 
   render: (entry, source, vars, callback)->

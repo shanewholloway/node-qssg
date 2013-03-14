@@ -102,9 +102,9 @@ class KindBasePlugin extends PluginCompositeTasks
     plugins ||= []
     @extendPlugins?(plugins)
     for pi,i in plugins
-      pi = pi.adapt(entry)
-      entry = pi.rename(entry)
-      plugins[i] = pi
+      plugins[i] = pi = pi.adapt(entry)
+      entry = pi.rename(entry) if pi?
+    plugins = plugins.filter (e)->e?
 
     self = Object.create @,
       plugins:value:plugins
