@@ -9,7 +9,6 @@
 
 qpluginKinds = require('./pluginKinds')
 module.exports = exports = Object.create(qpluginKinds)
-pluginTypes = exports.pluginTypes
 
 exports.splitExt = splitExt = (ext)->
   ext = ext.split(/[. ;,]+/) if ext.split?
@@ -129,7 +128,6 @@ class StaticPlugin extends CommonPluginBase
   context: (entry, source, vars, callback)->
     callback null, source
 
-pluginTypes.static = StaticPlugin
 exports.StaticPlugin = StaticPlugin
 
 
@@ -145,7 +143,6 @@ class RenderPlugin extends BasicPlugin
     @compile entry, source, vars, (err, renderFn)->
       renderFn(vars, callback)
 
-pluginTypes.render = RenderPlugin
 exports.RenderPlugin = RenderPlugin
 
 
@@ -155,7 +152,6 @@ class CompilePlugin extends RenderPlugin
       return @notImplemented('compile', entry, callback)
     @compile(entry, source, vars, callback)
 
-pluginTypes.compile = CompilePlugin
 exports.CompilePlugin = CompilePlugin
 
 
@@ -165,7 +161,6 @@ class CompileOnlyPlugin extends BasicPlugin
   render: (entry, source, vars, callback)->
     @notImplemented('render', entry, callback)
 
-pluginTypes.compile_only = CompileOnlyPlugin
 exports.CompileOnlyPlugin = CompileOnlyPlugin
 
 #~ Node.js provided plugin functionality ~~~~~~~~~~~~
@@ -181,7 +176,6 @@ class JsonPlugin extends BasicPlugin
     try callback null, JSON.parse(source)
     catch err then callback(err)
 
-pluginTypes.json = JsonPlugin
 exports.JsonPlugin = JsonPlugin
 
 
@@ -221,7 +215,6 @@ class ModulePlugin extends BasicPlugin
     err = "Module '#{entry.srcRelPath}' does not implement `#{protocolMethod}()`"
     callback(new Error(err)); return
 
-pluginTypes.module = ModulePlugin
 exports.ModulePlugin = ModulePlugin
 
 

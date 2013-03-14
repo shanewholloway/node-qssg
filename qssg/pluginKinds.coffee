@@ -9,8 +9,6 @@
 
 qutil = require('./util')
 
-exports.pluginTypes = pluginTypes = {}
-
 class PluginCompositeTasks
   loadSource: (entry, source, vars, callback)->
     entry.read(callback)
@@ -182,7 +180,6 @@ class KindPlugin extends KindBasePlugin
     @entry.walk()
 
 exports.KindPlugin = KindPlugin
-pluginTypes.kind = KindPlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -200,7 +197,6 @@ class TemplatePlugin extends KindBasePlugin
       taskFn()
 
 exports.TemplatePlugin = TemplatePlugin
-pluginTypes.template = TemplatePlugin
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -215,5 +211,4 @@ class MetadataPlugin extends KindBasePlugin
       @setMetadata(taskFn)
 
 exports.TemplatePlugin = TemplatePlugin
-pluginTypes.template = TemplatePlugin
 
