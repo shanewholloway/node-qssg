@@ -27,10 +27,13 @@ class SiteBuilder extends events.EventEmitter
     fsTasks = qutil.invokeList.ordered()
     dirTasks = qutil.createTaskTracker =>
       @fsTaskQueue.extend fsTasks.sort(); fsTasks = null
-    tasks = qutil.createTaskTracker qutil.debounce 1, ->
-      clearInterval(tidUpdate); doneBuildFn()
+    tasks = qutil.createTaskTracker qutil.debounce 1, =>
+      clearInterval(tidUpdate)
+      doneBuildFn()
+      @emit('done')
     tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
 
+    @emit('begin')
     @contentTree.visit (vkind, citem, keyPath)=>
       relPath = keyPath.join('/')
       fullPath = path.resolve(@rootPath, relPath)
@@ -111,7 +114,8 @@ class SiteBuilder extends events.EventEmitter
   #emit: ->
 
   logTasksUpdate: (tasks, trackerMap)->
-    console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
+    if not @emit('update', tasks, trackerMap)
+      console.warn "tasks active: #{tasks.active} waiting on: #{inspect(Object.keys(trackerMap))}"
 
 exports.SiteBuilder = SiteBuilder
 exports.createBuilder = (rootPath, content)->

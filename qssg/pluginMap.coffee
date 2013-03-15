@@ -22,9 +22,9 @@ class PluginBaseMap
     return i
 
   invalidate: -> @_cache = {}; return @
-  reset: (defaults=true)->
+  reset: (defaultMode)->
     @db = {}
-    @addDefaultPlugins() if defaults
+    @addDefaultPlugins(defaultMode)
     return @invalidate()
   clone: ->
     self = Object.create @
@@ -39,10 +39,14 @@ class PluginBaseMap
       hash[key] = pi
     return hash
   merge: (plugins)->
-    if plugins is true
-      return @freeze()
-    else if plugins is false
-      return @reset()
+    if isFinite(plugins)
+      if plugins is true
+        return @freeze()
+      else if plugins is false or plugins is null
+        return @reset()
+      else if plugins is 0
+        return @reset(false)
+      throw new Error("Unknown merge sentinal '#{plugins}' (#{typeof plugins})")
     else
       @addPluginHash plugins.exportPlugins?() or plugins
     return @invalidate()
@@ -110,7 +114,7 @@ class PluginBaseMap
     if not entry.isDirectory()
       pi_list = @findPluginListForExt(entry.ext, entry)
     pi_kind = @findPluginForKind(entry.kind0, entry)
-    return pi_kind.composePlugin(pi_list, entry)
+    return pi_kind?.composePlugin(pi_list, entry)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

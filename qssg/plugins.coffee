@@ -11,12 +11,15 @@ qpluginMap = require('./pluginMap')
 qpluginTypes = require('./pluginTypes')
 module.exports = exports = Object.create(qpluginTypes)
 
-{StaticPlugin, KindPlugin, splitExt} = qpluginTypes
+{KindPlugin, StaticPlugin, NullPlugin, splitExt} = qpluginTypes
 
 
 class PluginMap extends qpluginMap.PluginBaseMap
-  addDefaultPlugins: ->
-    @addPluginAt '', new StaticPlugin()
+  addDefaultPlugins: (mode)->
+    if mode is false or mode is 'no-op'
+      @addPluginAt '', new NullPlugin()
+    else
+      @addPluginAt '', new StaticPlugin()
     @addPluginAt '&', new KindPlugin()
 
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

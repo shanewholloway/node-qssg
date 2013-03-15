@@ -98,8 +98,7 @@ exports.BasicPlugin = BasicPlugin
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-class StaticPlugin extends CommonPluginBase
+class MultiMatchPluginBase extends CommonPluginBase
   init: (options...)->
     @extList = []
     for opt in options
@@ -119,6 +118,21 @@ class StaticPlugin extends CommonPluginBase
       else
         console.warn "Ignoreing invalid static extension #{ext}"
 
+
+class NullPlugin extends CommonPluginBase
+  loadSource: (entry, source, vars, callback)->
+    callback(null, '')
+  renderStream: (entry, vars, callback)->
+    callback null, null
+  render: (entry, source, vars, callback)->
+    callback null, ''
+  context: (entry, source, vars, callback)->
+    callback null, ''
+
+exports.NullPlugin = NullPlugin
+
+
+class StaticPlugin extends CommonPluginBase
   touchContent: (entry, citem)->
     citem.touch(entry.stat.mtime)
   renderStream: (entry, vars, callback)->

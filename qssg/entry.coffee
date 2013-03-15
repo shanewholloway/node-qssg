@@ -142,6 +142,10 @@ class MatchingWalker extends tromp.WalkRoot
 
   walkNotify: (op, args...)->
     @["_op_"+op]?.apply(@, args)
+
+  _op_listing_pre: (listing)->
+    c = @history[listing.path] || 0
+    @history[listing.path] = c+1
   _op_dir: (entry)->
     c = @history[entry.path] || 0
     entry = new MatchEntry(entry, @baseTree, @pluginMap)
@@ -156,8 +160,12 @@ class MatchingWalker extends tromp.WalkRoot
     try
       matchMethod = entry.setMatchMethod(matchKind)
       plugin = @pluginMap.findPlugin(entry)
-      @site.matchEntryPlugin entry,
-        plugin.bindPluginFn(matchMethod)
+      if not plugin?
+        @site.matchEntryNullPlugin entry
+      else
+        @site.matchEntryPlugin entry,
+          plugin.bindPluginFn(matchMethod),
+          plugin
     catch err
       console.warn(entry)
       console.warn(err.stack or err)
