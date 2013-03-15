@@ -319,9 +319,15 @@ MatchingWalker = (function(_super) {
 
   MatchingWalker.prototype.match = function(entry, matchKind) {
     var matchMethod, plugin;
-    matchMethod = entry.setMatchMethod(matchKind);
-    plugin = this.pluginMap.findPlugin(entry);
-    return this.site.matchEntryPlugin(entry, plugin.bindPluginFn(matchMethod));
+    try {
+      matchMethod = entry.setMatchMethod(matchKind);
+      plugin = this.pluginMap.findPlugin(entry);
+      return this.site.matchEntryPlugin(entry, plugin.bindPluginFn(matchMethod));
+    } catch (err) {
+      console.warn(entry);
+      console.warn(err.stack || err);
+      return console.warn('');
+    }
   };
 
   return MatchingWalker;

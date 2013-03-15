@@ -68,12 +68,11 @@ class Site
     @walker.walkRootContent aPath, tree, plugins
 
   matchEntryPlugin: (entry, pluginFn)->
-    process.nextTick =>
-      try pluginFn @buildTasks
-      catch err
-        console.warn(entry)
-        console.warn(err.stack or err)
-        console.warn('')
+    try pluginFn @buildTasks
+    catch err
+      console.warn(entry)
+      console.warn(err.stack or err)
+      console.warn('')
 
   invokeBuildTasks: ->
     tasks = qutil.createTaskTracker(arguments...)
@@ -89,7 +88,7 @@ class Site
     vars = Object.create vars || null, meta:value:@meta
 
     bldr = qbuilder.createBuilder(rootPath, @content)
-    @walker.done qutil.debounce 100, =>
+    @walker.done qutil.debounce 1, =>
       @invokeBuildTasks (err, tasks)=>
         bldr.build(vars, callback)
     return bldr

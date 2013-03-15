@@ -150,10 +150,15 @@ class MatchingWalker extends tromp.WalkRoot
     @ruleset.matchRules(entry, @)
 
   match: (entry, matchKind)->
-    matchMethod = entry.setMatchMethod(matchKind)
-    plugin = @pluginMap.findPlugin(entry)
-    @site.matchEntryPlugin entry,
-      plugin.bindPluginFn(matchMethod)
+    try
+      matchMethod = entry.setMatchMethod(matchKind)
+      plugin = @pluginMap.findPlugin(entry)
+      @site.matchEntryPlugin entry,
+        plugin.bindPluginFn(matchMethod)
+    catch err
+      console.warn(entry)
+      console.warn(err.stack or err)
+      console.warn('')
 
 
 exports.MatchingWalker = MatchingWalker

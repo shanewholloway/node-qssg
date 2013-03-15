@@ -37,7 +37,7 @@ SiteBuilder = (function(_super) {
       _this.fsTaskQueue.extend(fsTasks.sort());
       return fsTasks = null;
     });
-    tasks = qutil.createTaskTracker(qutil.debounce(100, function() {
+    tasks = qutil.createTaskTracker(qutil.debounce(1, function() {
       clearInterval(tidUpdate);
       return doneBuildFn();
     }));

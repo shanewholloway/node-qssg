@@ -92,16 +92,13 @@ Site = (function() {
   };
 
   Site.prototype.matchEntryPlugin = function(entry, pluginFn) {
-    var _this = this;
-    return process.nextTick(function() {
-      try {
-        return pluginFn(_this.buildTasks);
-      } catch (err) {
-        console.warn(entry);
-        console.warn(err.stack || err);
-        return console.warn('');
-      }
-    });
+    try {
+      return pluginFn(this.buildTasks);
+    } catch (err) {
+      console.warn(entry);
+      console.warn(err.stack || err);
+      return console.warn('');
+    }
   };
 
   Site.prototype.invokeBuildTasks = function() {
@@ -133,7 +130,7 @@ Site = (function() {
       }
     });
     bldr = qbuilder.createBuilder(rootPath, this.content);
-    this.walker.done(qutil.debounce(100, function() {
+    this.walker.done(qutil.debounce(1, function() {
       return _this.invokeBuildTasks(function(err, tasks) {
         return bldr.build(vars, callback);
       });

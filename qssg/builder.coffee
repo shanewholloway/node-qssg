@@ -27,7 +27,7 @@ class SiteBuilder extends events.EventEmitter
     fsTasks = qutil.invokeList.ordered()
     dirTasks = qutil.createTaskTracker =>
       @fsTaskQueue.extend fsTasks.sort(); fsTasks = null
-    tasks = qutil.createTaskTracker qutil.debounce 100, ->
+    tasks = qutil.createTaskTracker qutil.debounce 1, ->
       clearInterval(tidUpdate); doneBuildFn()
     tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
 
