@@ -308,6 +308,12 @@ MatchingWalker = (function(_super) {
     return (_ref = this["_op_" + op]) != null ? _ref.apply(this, args) : void 0;
   };
 
+  MatchingWalker.prototype._op_listing_pre = function(listing) {
+    var c;
+    c = this.history[listing.path] || 0;
+    return this.history[listing.path] = c + 1;
+  };
+
   MatchingWalker.prototype._op_dir = function(entry) {
     var c;
     c = this.history[entry.path] || 0;
@@ -328,7 +334,11 @@ MatchingWalker = (function(_super) {
     try {
       matchMethod = entry.setMatchMethod(matchKind);
       plugin = this.pluginMap.findPlugin(entry);
-      return this.site.matchEntryPlugin(entry, plugin.bindPluginFn(matchMethod));
+      if (plugin == null) {
+        return this.site.matchEntryNullPlugin(entry);
+      } else {
+        return this.site.matchEntryPlugin(entry, plugin.bindPluginFn(matchMethod), plugin);
+      }
     } catch (err) {
       console.warn(entry);
       console.warn(err.stack || err);

@@ -33,14 +33,9 @@ PluginBaseMap = (function() {
     return this;
   };
 
-  PluginBaseMap.prototype.reset = function(defaults) {
-    if (defaults == null) {
-      defaults = true;
-    }
+  PluginBaseMap.prototype.reset = function(defaultMode) {
     this.db = {};
-    if (defaults) {
-      this.addDefaultPlugins();
-    }
+    this.addDefaultPlugins(defaultMode);
     return this.invalidate();
   };
 
@@ -71,10 +66,15 @@ PluginBaseMap = (function() {
   };
 
   PluginBaseMap.prototype.merge = function(plugins) {
-    if (plugins === true) {
-      return this.freeze();
-    } else if (plugins === false) {
-      return this.reset();
+    if (isFinite(plugins)) {
+      if (plugins === true) {
+        return this.freeze();
+      } else if (plugins === false || plugins === null) {
+        return this.reset();
+      } else if (plugins === 0) {
+        return this.reset(false);
+      }
+      throw new Error("Unknown merge sentinal '" + plugins + "' (" + (typeof plugins) + ")");
     } else {
       this.addPluginHash((typeof plugins.exportPlugins === "function" ? plugins.exportPlugins() : void 0) || plugins);
     }
@@ -178,7 +178,7 @@ PluginBaseMap = (function() {
       pi_list = this.findPluginListForExt(entry.ext, entry);
     }
     pi_kind = this.findPluginForKind(entry.kind0, entry);
-    return pi_kind.composePlugin(pi_list, entry);
+    return pi_kind != null ? pi_kind.composePlugin(pi_list, entry) : void 0;
   };
 
   return PluginBaseMap;

@@ -39,9 +39,11 @@ SiteBuilder = (function(_super) {
     });
     tasks = qutil.createTaskTracker(qutil.debounce(1, function() {
       clearInterval(tidUpdate);
-      return doneBuildFn();
+      doneBuildFn();
+      return _this.emit('done');
     }));
     tidUpdate = setInterval(this.logTasksUpdate.bind(this, tasks, trackerMap), this.msTasksUpdate || 2000);
+    this.emit('begin');
     return this.contentTree.visit(function(vkind, citem, keyPath) {
       var fullPath, relPath, rx, rx_vars;
       relPath = keyPath.join('/');
@@ -170,7 +172,9 @@ SiteBuilder = (function(_super) {
   };
 
   SiteBuilder.prototype.logTasksUpdate = function(tasks, trackerMap) {
-    return console.warn("tasks active: " + tasks.active + " waiting on: " + (inspect(Object.keys(trackerMap))));
+    if (!this.emit('update', tasks, trackerMap)) {
+      return console.warn("tasks active: " + tasks.active + " waiting on: " + (inspect(Object.keys(trackerMap))));
+    }
   };
 
   return SiteBuilder;
