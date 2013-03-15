@@ -91,6 +91,10 @@ Site = (function() {
     return this.walker.walkRootContent(aPath, tree, plugins);
   };
 
+  Site.prototype.rewalkEntry = function(entry, c) {
+    return false;
+  };
+
   Site.prototype.matchEntryPlugin = function(entry, pluginFn) {
     try {
       return pluginFn(this.buildTasks);

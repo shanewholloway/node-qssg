@@ -67,6 +67,7 @@ class Site
     tree = @content.addTree(path.join('.', opt.mount))
     @walker.walkRootContent aPath, tree, plugins
 
+  rewalkEntry: (entry, c)-> false
   matchEntryPlugin: (entry, pluginFn)->
     try pluginFn @buildTasks
     catch err

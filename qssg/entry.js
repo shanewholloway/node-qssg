@@ -267,9 +267,10 @@ MatchingWalker = (function(_super) {
 
   __extends(MatchingWalker, _super);
 
-  function MatchingWalker(site, ruleset) {
+  function MatchingWalker(site, ruleset, history) {
     this.site = site;
     this.ruleset = ruleset;
+    this.history = history != null ? history : {};
     MatchingWalker.__super__.constructor.call(this, {
       autoWalk: false
     });
@@ -308,8 +309,13 @@ MatchingWalker = (function(_super) {
   };
 
   MatchingWalker.prototype._op_dir = function(entry) {
+    var c;
+    c = this.history[entry.path] || 0;
     entry = new MatchEntry(entry, this.baseTree, this.pluginMap);
-    return this.ruleset.matchRules(entry, this);
+    if (c === 0 || this.site.rewalkEntry(entry, c)) {
+      this.history[entry.path] = c + 1;
+      return this.ruleset.matchRules(entry, this);
+    }
   };
 
   MatchingWalker.prototype._op_file = function(entry) {

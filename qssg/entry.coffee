@@ -123,7 +123,7 @@ exports.MatchEntry = MatchEntry
 
 
 class MatchingWalker extends tromp.WalkRoot
-  constructor: (@site, @ruleset)->
+  constructor: (@site, @ruleset, @history={})->
     super(autoWalk: false)
     Object.defineProperty @, '_self_', value:@
 
@@ -143,8 +143,11 @@ class MatchingWalker extends tromp.WalkRoot
   walkNotify: (op, args...)->
     @["_op_"+op]?.apply(@, args)
   _op_dir: (entry)->
+    c = @history[entry.path] || 0
     entry = new MatchEntry(entry, @baseTree, @pluginMap)
-    @ruleset.matchRules(entry, @)
+    if c is 0 or @site.rewalkEntry(entry, c)
+      @history[entry.path] = c+1
+      @ruleset.matchRules(entry, @)
   _op_file: (entry)->
     entry = new MatchEntry(entry, @baseTree, @pluginMap)
     @ruleset.matchRules(entry, @)
