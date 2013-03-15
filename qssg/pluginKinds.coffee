@@ -121,7 +121,7 @@ class KindBasePlugin extends PluginCompositeTasks
         @[k] = v
     return @
 
-  inspect: -> "«#{@constructor.name}: [#{@plugins.join(', ')}]»"
+  inspect: -> "«#{@constructor.name}: [#{(@plugins||[]).join(', ')}]»"
   toString: -> @inspect()
 
   composePlugin: (plugins, entry, matchMethod)->

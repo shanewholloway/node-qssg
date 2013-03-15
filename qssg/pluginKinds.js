@@ -252,7 +252,7 @@ KindBasePlugin = (function(_super) {
   };
 
   KindBasePlugin.prototype.inspect = function() {
-    return "«" + this.constructor.name + ": [" + (this.plugins.join(', ')) + "]»";
+    return "«" + this.constructor.name + ": [" + ((this.plugins || []).join(', ')) + "]»";
   };
 
   KindBasePlugin.prototype.toString = function() {

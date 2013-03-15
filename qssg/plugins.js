@@ -17,8 +17,7 @@ PluginMap = (function(_super) {
   __extends(PluginMap, _super);
 
   function PluginMap() {
-    PluginMap.__super__.constructor.call(this);
-    this.addDefaultPlugins();
+    return PluginMap.__super__.constructor.apply(this, arguments);
   }
 
   PluginMap.prototype.addDefaultPlugins = function() {

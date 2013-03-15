@@ -81,9 +81,10 @@ Site = (function() {
     if (opt == null) {
       opt = {};
     }
-    if (opt.plugins != null) {
-      plugins = this.plugins.clone();
-      plugins.merge(opt.plugins);
+    if ((plugins = opt.plugins) != null) {
+      if (!(plugins != null ? plugins.findPlugin : void 0)) {
+        plugins = this.plugins.clone().merge(plugins);
+      }
     } else {
       plugins = this.plugins;
     }

@@ -59,9 +59,9 @@ class Site
   #~ API & context
 
   walk: (aPath, opt={})->
-    if opt.plugins?
-      plugins = @plugins.clone()
-      plugins.merge(opt.plugins)
+    if (plugins=opt.plugins)?
+      if not plugins?.findPlugin
+        plugins = @plugins.clone().merge(plugins)
     else plugins = @plugins
 
     tree = @content.addTree(path.join('.', opt.mount))

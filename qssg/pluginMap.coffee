@@ -7,13 +7,13 @@
 ##~ found in the LICENSE file included with this distribution.    ##
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
 
+{inspect} = require('util')
 {PipelinePlugin} = require('./pluginTypes')
 
 class PluginBaseMap
-  constructor: ->
-    Object.defineProperties @, db:value:{}
+  constructor: -> @reset()
 
-  inspect: -> "«#{@constructor.name}»"
+  inspect: -> "«#{@constructor.name} | #{Object.keys(@exportPlugins()).join(' | ')} |»"
   toString: -> @inspect()
 
   countDbKeys: ->
@@ -22,9 +22,13 @@ class PluginBaseMap
     return i
 
   invalidate: -> @_cache = {}; return @
-  reset: -> @db = {}; return @invalidate()
+  reset: (defaults=true)->
+    @db = {}
+    @addDefaultPlugins() if defaults
+    return @invalidate()
   clone: ->
-    self = Object.create @, db:value:Object.create(@db)
+    self = Object.create @
+    self.db = Object.create @db
     return self.invalidate()
   freeze: ->
     hash = @exportPlugins()

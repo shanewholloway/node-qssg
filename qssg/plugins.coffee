@@ -15,10 +15,6 @@ module.exports = exports = Object.create(qpluginTypes)
 
 
 class PluginMap extends qpluginMap.PluginBaseMap
-  constructor:->
-    super()
-    @addDefaultPlugins()
-
   addDefaultPlugins: ->
     @addPluginAt '', new StaticPlugin()
     @addPluginAt '&', new KindPlugin()

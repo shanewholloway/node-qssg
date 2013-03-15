@@ -95,6 +95,7 @@ SiteBuilder = (function(_super) {
           return citem.render(rx_vars, renderAnswer);
         }));
       });
+      tasks.defer(function() {});
       return true;
     });
   };

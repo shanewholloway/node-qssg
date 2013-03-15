@@ -63,6 +63,7 @@ class SiteBuilder extends events.EventEmitter
           trackerMap[relPath] = renderAnswer
           citem.render(rx_vars, renderAnswer)
 
+      tasks.defer -> # add an empty task to start when no rendered items are added
       return true
 
   fs: qutil.fs
