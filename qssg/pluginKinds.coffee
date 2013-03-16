@@ -124,13 +124,32 @@ class KindBasePlugin extends PluginCompositeTasks
   inspect: -> "«#{@constructor.name}: [#{(@plugins||[]).join(', ')}]»"
   toString: -> @inspect()
 
-  composePlugin: (plugins, entry, matchMethod)->
-    plugins ||= []
+  extendPlugins: (plugins)->
+    if @plugins_before?.length
+      plugins.unshift(@plugins_before...)
+    if @plugins_after?.length
+      plugins.push(@plugins_after...)
+    return plugins
+  _expandPluginsInorder: (plugins)->
     @extendPlugins?(plugins)
-    for pi,i in plugins
-      plugins[i] = pi = pi.adapt(entry)
-      entry = pi.rename(entry) if pi?
-    plugins = plugins.filter (e)->e?
+    v = []
+    plugins.splice(0).forEach pi_visitor=(pi)->
+      return if ~v.indexOf(pi)
+      v.push pi
+      if pi.iterPlugins?
+        pi.iterPlugins(pi_visitor)
+      else
+        pi.plugins_before?.forEach(pi_visitor)
+        plugins.push(pi)
+        pi.plugins_after?.forEach(pi_visitor)
+    return plugins
+
+  composePlugin: (plugins, entry, matchMethod)->
+    plugins = @_expandPluginsInorder(plugins||[]).map (pi)->
+        if (pi = pi.adapt(entry))?
+          entry = pi.rename(entry)
+          return pi
+      .filter (e)->e?
 
     self = Object.create @,
       plugins:value:plugins

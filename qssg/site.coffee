@@ -27,7 +27,7 @@ class Site extends events.EventEmitter
 
   constructor: (opt={}, plugins)->
     super()
-    @meta = Object.create opt.meta||@meta||null
+    @meta = opt.meta || @meta || {}
     @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
 
