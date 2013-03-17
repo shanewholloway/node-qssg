@@ -259,20 +259,50 @@ KindBasePlugin = (function(_super) {
     return this.inspect();
   };
 
-  KindBasePlugin.prototype.composePlugin = function(plugins, entry, matchMethod) {
-    var i, pi, self, _i, _len;
-    plugins || (plugins = []);
+  KindBasePlugin.prototype.extendPlugins = function(plugins) {
+    var _ref, _ref1;
+    if ((_ref = this.plugins_before) != null ? _ref.length : void 0) {
+      plugins.unshift.apply(plugins, this.plugins_before);
+    }
+    if ((_ref1 = this.plugins_after) != null ? _ref1.length : void 0) {
+      plugins.push.apply(plugins, this.plugins_after);
+    }
+    return plugins;
+  };
+
+  KindBasePlugin.prototype._expandPluginsInorder = function(plugins) {
+    var pi_visitor, v;
     if (typeof this.extendPlugins === "function") {
       this.extendPlugins(plugins);
     }
-    for (i = _i = 0, _len = plugins.length; _i < _len; i = ++_i) {
-      pi = plugins[i];
-      plugins[i] = pi = pi.adapt(entry);
-      if (pi != null) {
-        entry = pi.rename(entry);
+    v = [];
+    plugins.splice(0).forEach(pi_visitor = function(pi) {
+      var _ref, _ref1;
+      if (~v.indexOf(pi)) {
+        return;
       }
-    }
-    plugins = plugins.filter(function(e) {
+      v.push(pi);
+      if (pi.iterPlugins != null) {
+        return pi.iterPlugins(pi_visitor);
+      } else {
+        if ((_ref = pi.plugins_before) != null) {
+          _ref.forEach(pi_visitor);
+        }
+        plugins.push(pi);
+        return (_ref1 = pi.plugins_after) != null ? _ref1.forEach(pi_visitor) : void 0;
+      }
+    });
+    return plugins;
+  };
+
+  KindBasePlugin.prototype.composePlugin = function(plugins, entry, matchMethod) {
+    var self;
+    plugins = this._expandPluginsInorder(plugins || []).map(function(pi) {
+      if ((pi = pi.adapt(entry)) != null) {
+        entry = pi.rename(entry);
+        return pi;
+      }
+    }).filter(function(e) {
       return e != null;
     });
     self = Object.create(this, {

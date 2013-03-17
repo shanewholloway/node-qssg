@@ -38,7 +38,7 @@ Site = (function(_super) {
       opt = {};
     }
     Site.__super__.constructor.call(this);
-    this.meta = Object.create(opt.meta || this.meta || null);
+    this.meta = opt.meta || this.meta || {};
     this.ctx = Object.create(opt.ctx || null);
     this.content = qcontent.createRoot();
     this.buildTasks = qutil.invokeList.ordered();
