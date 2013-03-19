@@ -295,7 +295,7 @@ KindBasePlugin = (function(_super) {
     return plugins;
   };
 
-  KindBasePlugin.prototype.composePlugin = function(plugins, entry, matchMethod) {
+  KindBasePlugin.prototype.composePlugin = function(plugins, entry) {
     var self;
     plugins = this._expandPluginsInorder(plugins || []).map(function(pi) {
       if ((pi = pi.adapt(entry)) != null) {

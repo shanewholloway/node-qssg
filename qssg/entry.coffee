@@ -164,8 +164,7 @@ class MatchingWalker extends tromp.WalkRoot
         @site.matchEntryNullPlugin entry
       else
         @site.matchEntryPlugin entry,
-          plugin.bindPluginFn(matchMethod),
-          plugin
+          plugin.bindPluginFn(matchMethod), plugin
     catch err
       console.warn(entry)
       console.warn(err.stack or err)

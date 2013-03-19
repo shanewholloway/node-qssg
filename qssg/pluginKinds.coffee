@@ -144,7 +144,7 @@ class KindBasePlugin extends PluginCompositeTasks
         pi.plugins_after?.forEach(pi_visitor)
     return plugins
 
-  composePlugin: (plugins, entry, matchMethod)->
+  composePlugin: (plugins, entry)->
     plugins = @_expandPluginsInorder(plugins||[]).map (pi)->
         if (pi = pi.adapt(entry))?
           entry = pi.rename(entry)
