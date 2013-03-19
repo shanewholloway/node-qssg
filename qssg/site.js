@@ -150,13 +150,13 @@ Site = (function(_super) {
     bldr = qbuilder.createBuilder(rootPath, this.content);
     this.walker.done(qutil.debounce(1, function() {
       _this.emit('build_tasks', bldr, rootPath, vars);
-      return _this.invokeBuildTasks(function(err, tasks) {
+      return _this.invokeBuildTasks(qutil.debounce(1, function(err, tasks) {
         _this.emit('build_content', bldr, rootPath, vars);
         return bldr.build(vars, function() {
           _this.emit('build_done', bldr, rootPath, vars);
           return callback.apply(null, arguments);
         });
-      });
+      }));
     }));
     return bldr;
   };

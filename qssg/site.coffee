@@ -99,7 +99,7 @@ class Site extends events.EventEmitter
     bldr = qbuilder.createBuilder(rootPath, @content)
     @walker.done qutil.debounce 1, =>
       @emit 'build_tasks', bldr, rootPath, vars
-      @invokeBuildTasks (err, tasks)=>
+      @invokeBuildTasks qutil.debounce 1, (err, tasks)=>
         @emit 'build_content', bldr, rootPath, vars
         bldr.build vars, =>
           @emit 'build_done', bldr, rootPath, vars
