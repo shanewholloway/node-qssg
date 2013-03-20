@@ -104,7 +104,11 @@ qrules =
       qrules.any(
         qrules.classify(/-(\w)-([^-].+)/, 'kind0 name0'),
         qrules.classify(/-([^-].+)-(\w)-?/, 'name0 kind0'),
-        qrules.classify(/-([^-].+)/, 'name0')),
+        qrules.classify(/-([^-].+)/, 'name0'),
+
+        qrules.classify(/_(\w)_([^-].+)/, 'kind0 name0'),
+        qrules.classify(/_([^_].+)_(\w)_?/, 'name0 kind0'),
+        qrules.classify(/_([^_].+)/, 'name0')),
       qrules.thenMatchKey(opt.kind || 'context'))
     return ruleset
 
@@ -112,7 +116,11 @@ qrules =
     ruleset.rule(
       qrules.any(
         qrules.classify(/([^-].+)-(\w)-?/, 'name0 kind0'),
-        qrules.classify(/([^-].+)-/, 'name0')),
+        qrules.classify(/([^-].+)-/, 'name0'),
+
+        qrules.classify(/([^_].+)_(\w)_?/, 'name0 kind0'),
+        qrules.classify(/([^_].+)_/, 'name0'),
+      ),
       qrules.thenMatchKey(opt.kind || 'composite'))
     return ruleset
 
