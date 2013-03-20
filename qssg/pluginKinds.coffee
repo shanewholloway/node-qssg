@@ -154,8 +154,14 @@ class KindBasePlugin extends PluginCompositeTasks
     self = Object.create @,
       plugins:value:plugins
       entry:value:entry
-    self.initComposed?()
+    self.initComposed()
     return self
+
+  initComposed: ->
+    buildOrder = @plugins.map (pi)-> pi.buildOrder
+    if buildOrder.length?
+      fn = @buildOrder>1 and Math.max or Math.min
+      @buildOrder = fn(buildOrder...)
 
   bindPluginFn: (matchMethod)-> @[matchMethod].bind(@)
 

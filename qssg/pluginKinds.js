@@ -313,10 +313,19 @@ KindBasePlugin = (function(_super) {
         value: entry
       }
     });
-    if (typeof self.initComposed === "function") {
-      self.initComposed();
-    }
+    self.initComposed();
     return self;
+  };
+
+  KindBasePlugin.prototype.initComposed = function() {
+    var buildOrder, fn;
+    buildOrder = this.plugins.map(function(pi) {
+      return pi.buildOrder;
+    });
+    if (buildOrder.length != null) {
+      fn = this.buildOrder > 1 && Math.max || Math.min;
+      return this.buildOrder = fn.apply(null, buildOrder);
+    }
   };
 
   KindBasePlugin.prototype.bindPluginFn = function(matchMethod) {
