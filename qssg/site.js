@@ -93,7 +93,7 @@ Site = (function(_super) {
     } else if (!(plugins != null ? plugins.findPlugin : void 0)) {
       plugins = this.plugins.clone().merge(plugins);
     }
-    tree = this.content.addTree(path.join('.', opt.mount));
+    tree = this.content.addTree(path.join('.', opt.mount || ''));
     this.emit('walk', aPath, tree, plugins);
     return this.walker.walkRootContent(aPath, tree, plugins);
   };

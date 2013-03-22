@@ -66,7 +66,7 @@ class Site extends events.EventEmitter
     else if not plugins?.findPlugin
       plugins = @plugins.clone().merge(plugins)
 
-    tree = @content.addTree(path.join('.', opt.mount))
+    tree = @content.addTree(path.join('.', opt.mount or ''))
     @emit 'walk', aPath, tree, plugins
     @walker.walkRootContent aPath, tree, plugins
 
