@@ -79,6 +79,9 @@ SiteBuilder = (function(_super) {
           enumerable: true
         }
       });
+      if (typeof vars.adaptVars === "function") {
+        vars.adaptVars(rx_vars);
+      }
       fsTasks.push(function(taskDone) {
         return _this.fs.stat(rx.fullPath, taskDone.wrap(function(err, stat) {
           var renderAnswer;

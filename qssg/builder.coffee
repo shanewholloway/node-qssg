@@ -53,6 +53,8 @@ class SiteBuilder extends events.EventEmitter
         output: value: rx, enumerable: true
         item: value: citem, enumerable: true
 
+      vars.adaptVars?(rx_vars)
+
       fsTasks.push (taskDone)=>
         @fs.stat rx.fullPath, taskDone.wrap (err, stat)=>
           if stat?
