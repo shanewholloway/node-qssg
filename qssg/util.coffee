@@ -43,6 +43,8 @@ deepExtend = (hash, others...)->
         d.push.apply(d, v)
       else if typeof v is 'object'
         q.push([d,v])
+      else
+        tgt[k] = v
   return hash
 exports.deepExtend = deepExtend
 
