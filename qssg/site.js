@@ -38,7 +38,6 @@ Site = (function(_super) {
       opt = {};
     }
     Site.__super__.constructor.call(this);
-    this.meta = opt.meta || this.meta || {};
     this.ctx = Object.create(opt.ctx || null);
     this.content = qcontent.createRoot();
     this.buildTasks = qutil.invokeList.ordered();
@@ -142,11 +141,7 @@ Site = (function(_super) {
       callback = vars;
       vars = null;
     }
-    vars = Object.create(vars || null, {
-      meta: {
-        value: this.meta
-      }
-    });
+    vars = Object.create(vars || null);
     bldr = qbuilder.createBuilder(rootPath, this.content);
     this.walker.done(qutil.debounce(1, function() {
       _this.emit('build_tasks', bldr, rootPath, vars);

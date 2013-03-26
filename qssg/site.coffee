@@ -27,7 +27,6 @@ class Site extends events.EventEmitter
 
   constructor: (opt={}, plugins)->
     super()
-    @meta = opt.meta || @meta || {}
     @ctx = Object.create(opt.ctx||null)
     @content = qcontent.createRoot()
 
@@ -94,7 +93,7 @@ class Site extends events.EventEmitter
   build: (rootPath, vars, callback)->
     if typeof vars is 'function'
       callback = vars; vars = null
-    vars = Object.create vars || null, meta:value:@meta
+    vars = Object.create vars || null
 
     bldr = qbuilder.createBuilder(rootPath, @content)
     @walker.done qutil.debounce 1, =>
