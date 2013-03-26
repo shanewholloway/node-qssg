@@ -9,6 +9,7 @@
 
 qpluginKinds = require('./pluginKinds')
 module.exports = exports = Object.create(qpluginKinds)
+{deepExtend} = require('./util')
 
 exports.splitExt = splitExt = (ext)->
   ext = ext.split(/[. ;,]+/) if ext.split?
@@ -20,21 +21,6 @@ exports.splitExt = splitExt = (ext)->
 makeRefError = (key)->
   get:-> throw new Error("Reference '#{key}' instead")
   set:-> throw new Error("Reference '#{key}' instead")
-
-deepExtendHash = (hash, other)->
-  q = [[hash, other]]
-  while q.length
-    [tgt, other] = q.pop()
-    for k,v of other
-      d = tgt[k]
-      if not d?
-        tgt[k] = v
-      else if d instanceof Array
-        tgt[k] = [].concat.call(d,v)
-      else if typeof v is 'object'
-        q.push([d,v])
-        console.log 'merge:', [k,v,d]
-  return hash
 
 class CommonPluginBase
   Object.defineProperties @.prototype,
@@ -62,7 +48,7 @@ class CommonPluginBase
   splitExt: splitExt
   mergeVars: (vars, other...)->
     for ea in other
-      vars = deepExtendHash(vars, ea)
+      vars = deepExtend(vars, ea)
     return vars
 
   notImplemented: (protocolMethod, entry, callback)->

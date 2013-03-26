@@ -165,3 +165,5 @@ exports.Site = Site;
 exports.createSite = function(opt, plugins) {
   return new Site(opt, plugins);
 };
+
+exports.deepExtend = qutil.deepExtend;

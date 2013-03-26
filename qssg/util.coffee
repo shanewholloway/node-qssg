@@ -30,6 +30,23 @@ fs.makeDirs = (aPath, mode, callback=->)->
 exports.fs = fs
 
 
+deepExtend = (hash, others...)->
+  q = []
+  q.push [hash,ea] for ea in others
+  while q.length
+    [tgt, other] = q.pop()
+    for k,v of other
+      d = tgt[k]
+      if not d?
+        tgt[k] = v
+      else if d instanceof Array
+        d.push.apply(d, v)
+      else if typeof v is 'object'
+        q.push([d,v])
+  return hash
+exports.deepExtend = deepExtend
+
+
 createTaskTracker = ->
   self = funcQueues.closureQueue(arguments...)
   doneFns = invokeList()

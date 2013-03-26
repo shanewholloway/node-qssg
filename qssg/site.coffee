@@ -110,3 +110,4 @@ exports.Site = Site
 exports.createSite = (opt, plugins)->
   new Site(opt, plugins)
 
+exports.deepExtend = qutil.deepExtend
