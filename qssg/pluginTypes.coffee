@@ -99,7 +99,19 @@ class BasicPlugin extends CommonPluginBase
   registerPluginOn: (pluginMap)->
     pluginMap.addPluginForExtIO(@, @ext, @input, @output)
 
+  context: -> @render(arguments...)
+  render: (entry, source, vars, callback)->
+    callback null, source
 exports.BasicPlugin = BasicPlugin
+
+
+class FilterPlugin extends BasicPlugin
+  context: -> @render(arguments...)
+  render: (entry, source, vars, callback)->
+    source = @filter(entry, source)
+    callback null, source
+  filter: (entry, source)-> source
+exports.FilterPlugin = FilterPlugin
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -154,8 +166,7 @@ exports.StaticPlugin = StaticPlugin
 
 class RenderPlugin extends BasicPlugin
   rename: BasicPlugin::renameForFormat
-  context: (entry, source, vars, callback)->
-    @render(entry, source, vars, callback)
+  context: -> @render(arguments...)
   render: (entry, source, vars, callback)->
     if not @compile?
       return @notImplemented('render', entry, callback)
