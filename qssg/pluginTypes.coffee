@@ -72,7 +72,7 @@ class CommonPluginBase
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
   adapt: (entry)-> @
-  rename: (entry)-> entry
+  rename: (entry)-> return
 
   render: (entry, source, vars, callback)->
     @notImplemented('render', entry, callback)
@@ -94,7 +94,7 @@ class BasicPlugin extends CommonPluginBase
     ext0 = entry.ext.pop()
     if not entry.ext.length
       entry.ext.push @defaultExt()
-    return entry
+    return
 
   registerPluginOn: (pluginMap)->
     pluginMap.addPluginForExtIO(@, @ext, @input, @output)

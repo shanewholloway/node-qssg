@@ -82,23 +82,26 @@ class Site extends events.EventEmitter
     if not @emit('match_null', entry)
       console.warn "Plugin missing for '#{path.relative('.', entry.srcPath)}'"
 
-  invokeBuildTasks: ->
-    tasks = qutil.createTaskTracker(arguments...)
+  invokeBuildTasks: (vars, args...)->
+    tasks = qutil.createTaskTracker(args...)
     for fn in @buildTasks.sort().slice()
       taskFn = tasks()
       try fn(vars, taskFn)
-      catch err then taskFn(err)
+      catch err
+        taskFn(err)
+        console.error err.stack
+        throw err
+
     return tasks.seed()
 
-  build: (rootPath, vars, callback)->
+  build: (rootPath, vars={}, callback)->
     if typeof vars is 'function'
-      callback = vars; vars = null
-    vars = Object.create vars || null
+      callback = vars; vars = {}
 
     bldr = qbuilder.createBuilder(rootPath, @content)
     @walker.done qutil.debounce 1, =>
       @emit 'build_tasks', bldr, rootPath, vars
-      @invokeBuildTasks qutil.debounce 1, (err, tasks)=>
+      @invokeBuildTasks vars, qutil.debounce 1, (err, tasks)=>
         @emit 'build_content', bldr, rootPath, vars
         bldr.build vars, =>
           @emit 'build_done', bldr, rootPath, vars

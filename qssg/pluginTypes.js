@@ -134,9 +134,7 @@ CommonPluginBase = (function() {
     return this;
   };
 
-  CommonPluginBase.prototype.rename = function(entry) {
-    return entry;
-  };
+  CommonPluginBase.prototype.rename = function(entry) {};
 
   CommonPluginBase.prototype.render = function(entry, source, vars, callback) {
     return this.notImplemented('render', entry, callback);
@@ -179,7 +177,6 @@ BasicPlugin = (function(_super) {
     if (!entry.ext.length) {
       entry.ext.push(this.defaultExt());
     }
-    return entry;
   };
 
   BasicPlugin.prototype.registerPluginOn = function(pluginMap) {

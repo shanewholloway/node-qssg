@@ -59,6 +59,8 @@ class PluginBaseMap
         if @acceptPlugin(key, pi)
           @db[key] = pi
     return @invalidate()
+  addKindPluginAt: (key, pi)->
+    @addPluginAt '&'+key, pi
   addPluginAt: (key, pi)->
     if @acceptPlugin(key, pi)
       @db[key] = pi

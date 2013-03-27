@@ -37,6 +37,7 @@ class Renderable
     tmplFn(vars, answerFn)
 
   renderComposed: (vars, answerFn)->
+    vars.ctx = @ctx
     try
       stepFn = @_renderTasks.iter (renderFn, err, src)->
         if not err? and renderFn isnt undefined

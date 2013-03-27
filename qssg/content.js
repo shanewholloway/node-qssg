@@ -63,6 +63,7 @@ Renderable = (function() {
 
   Renderable.prototype.renderComposed = function(vars, answerFn) {
     var stepFn;
+    vars.ctx = this.ctx;
     try {
       stepFn = this._renderTasks.iter(function(renderFn, err, src) {
         if ((err == null) && renderFn !== void 0) {

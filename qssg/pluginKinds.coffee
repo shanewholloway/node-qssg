@@ -20,6 +20,9 @@ class PluginCompositeTasks
 
   bindPipelineFn: (tasks, ns)->
     return (source, vars, answerFn)=>
+      if typeof answerFn isnt 'function'
+        throw new Error("Callback function required")
+
       if ns?
         vars = Object.create(vars)
         vars[k]=v for k,v of ns
@@ -60,7 +63,7 @@ class PluginCompositeTasks
   bindTemplateFn: (ns)->
     renderFn = @bindRenderFn(ns)
     tmplFn = (source, vars, answerFn)=>
-      vars = Object.create vars, content:value:source
+      vars = Object.create vars||null, content:value:source
       renderFn(vars, answerFn)
     return tmplFn
   addTemplate: (tmplFn, order=@templateOrder)->
@@ -88,7 +91,7 @@ class PluginCompositeTasks
     if typeof vars is 'function'
       callback = vars; vars = {}
     ctxFn = @bindContextFn()
-    ctxFn vars, (err, value)=>
+    ctxFn null, vars, (err, value)=>
       @entry.setCtxValue(value) if not err?
       callback?(err, value)
 
@@ -96,7 +99,7 @@ class PluginCompositeTasks
     if typeof vars is 'function'
       callback = vars; vars = {}
     ctxFn = @bindContextFn()
-    ctxFn vars, (err, metadata)=>
+    ctxFn null, vars, (err, metadata)=>
       if not err? and metadata?
         citem = @entry.getContent()
         for k,v of metadata
@@ -112,7 +115,8 @@ class KindBasePlugin extends PluginCompositeTasks
 
   kinds: ''
   registerPluginOn: (pluginMap)->
-    pluginMap.addPluginAt '&'+@kind
+    for k in @kinds.split /\W/
+      pluginMap.addKindPluginAt k, @
 
   init: (opt)-> @initOptions(opt) if opt?
   initOptions: (opt)->
@@ -147,7 +151,7 @@ class KindBasePlugin extends PluginCompositeTasks
   composePlugin: (plugins, entry)->
     plugins = @_expandPluginsInorder(plugins||[]).map (pi)->
         if (pi = pi.adapt(entry))?
-          entry = pi.rename(entry)
+          pi.rename(entry)
           return pi
       .filter (e)->e?
 
@@ -158,10 +162,11 @@ class KindBasePlugin extends PluginCompositeTasks
     return self
 
   initComposed: ->
-    buildOrder = @plugins.map (pi)-> pi.buildOrder
-    if buildOrder.length?
+    vec = @plugins.map (pi)-> pi.buildOrder
+    vec = vec.filter (e)->e
+    if vec.length
       fn = @buildOrder>1 and Math.max or Math.min
-      @buildOrder = fn(buildOrder...)
+      @buildOrder = fn(vec...)
 
   bindPluginFn: (matchMethod)-> @[matchMethod].bind(@)
 
@@ -177,6 +182,15 @@ class KindBasePlugin extends PluginCompositeTasks
 
 exports.KindBasePlugin = KindBasePlugin
 
+class KindNullPlugin extends KindBasePlugin
+  simple: (buildTasks)-> return
+  composite: (buildTasks)-> return
+  context: (buildTasks)-> return
+  simpleDir: (buildTasks)-> return
+  compositeDir: (buildTasks)-> return
+  contextDir: (buildTasks)-> return
+exports.KindNullPlugin = KindNullPlugin
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 class KindPlugin extends KindBasePlugin
@@ -187,8 +201,8 @@ class KindPlugin extends KindBasePlugin
   composite: (buildTasks)->
     @bindRenderContent()
   context: (buildTasks)->
-    buildTasks.add @buildOrder, (taskFn)=>
-      @setContext({}, taskFn)
+    buildTasks.add @buildOrder, (vars, taskFn)=>
+      @setContext(vars, taskFn)
 
   simpleDir: (buildTasks)->
     if @entry.ext.length
@@ -213,11 +227,11 @@ class TemplatePlugin extends KindBasePlugin
   buildOrder: 5
 
   composite: (buildTasks)->
-    buildTasks.add @buildOrder, (taskFn)=>
+    buildTasks.add @buildOrder, (vars, taskFn)=>
       @addTemplate()
       taskFn()
   context: (buildTasks)->
-    buildTasks.add @buildOrder, =>
+    buildTasks.add @buildOrder, (vars, taskFn)=>
       @entry.setCtxTemplate @bindTemplateFn()
       taskFn()
 
@@ -229,10 +243,10 @@ class MetadataPlugin extends KindBasePlugin
   buildOrder: -1
 
   composite: (buildTasks)->
-    buildTasks.add @buildOrder, (taskFn)=>
+    buildTasks.add @buildOrder, (vars, taskFn)=>
       @setMetadata(taskFn)
   context: (buildTasks)->
-    buildTasks.add @buildOrder, (taskFn)=>
+    buildTasks.add @buildOrder, (vars, taskFn)=>
       @setMetadata(taskFn)
 
 exports.TemplatePlugin = TemplatePlugin

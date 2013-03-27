@@ -95,6 +95,10 @@ PluginBaseMap = (function() {
     return this.invalidate();
   };
 
+  PluginBaseMap.prototype.addKindPluginAt = function(key, pi) {
+    return this.addPluginAt('&' + key, pi);
+  };
+
   PluginBaseMap.prototype.addPluginAt = function(key, pi) {
     if (this.acceptPlugin(key, pi)) {
       this.db[key] = pi;
