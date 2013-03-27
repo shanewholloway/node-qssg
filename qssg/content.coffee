@@ -55,16 +55,18 @@ class ContentBaseNode extends Renderable
   init: (parent)->
     Object.defineProperties @, parent:value:parent
     @meta = {}
-    @ctx = @initCtx(parent?.ctx)
+    @ctx = @initCtx(parent?.ctx, parent)
 
   updateMetaFromEntry: (entry)->
     @meta.entry = entry
     @meta.srcPath = entry.srcPath
 
-  initCtx: (ctx_next)-> ctx_next || {}
+  initCtx: (ctx_next)-> ctx_next || @pushCtx()
   pushCtx: (ctx_next)->
-    tmpl = ctx_next? and Object.create(ctx_next.tmpl) or {}
-    return Object.create ctx_next||null,
+    if not ctx_next?
+      return {tmpl:{}}
+    tmpl = Object.create(ctx_next.tmpl||={})
+    return Object.create ctx_next,
       tmpl:{value:tmpl}, ctx_next:{value:ctx_next}
 
   visit: (visitor, keyPath)->
@@ -134,7 +136,7 @@ class ContentRoot extends ContentComposite
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-class ContentTree extends ContentBaseNode
+class ContentTreeNode extends ContentBaseNode
   kind: 'tree'
   constructor: (parent, @name)->
     @items = {}
@@ -164,15 +166,21 @@ class ContentTree extends ContentBaseNode
       each.visit(visitor, keyPath)
     return true
 
+class ContentTree extends ContentTreeNode
+  isContentTree: true
+  initCtx: (ctx_next, parent)->
+    if parent?.isContentTree
+      return @pushCtx(ctx_next)
+    return super(ctx_next, parent)
 
-class CtxTree extends ContentTree
+class CtxTree extends ContentTreeNode
   kind: 'ctx_tree'
   isCtxTree: true
   initCtx: (ctx_parent)->
     if ctx_parent?
       ctx = @pushCtx(ctx_parent[@name])
       return ctx_parent[@name] = ctx
-    else return {}
+    else return @pushCtx()
 
   adaptMatchKind: (matchKind)-> 'context'
 
@@ -182,8 +190,6 @@ class ContentCollectionMixin
   ContentItem: ContentItem
   ContentTree: ContentTree
   CtxTree: CtxTree
-
-  initCtx: (ctx_next)-> @pushCtx(ctx_next)
 
   newContentEx: (parent, key)->
     new @.ContentItem(parent, key)
