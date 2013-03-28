@@ -151,7 +151,7 @@ MatchEntry = (function() {
 
   MatchEntry.prototype.setCtxTemplate = function(tmplFn) {
     if (typeof tmplFn === 'function') {
-      return this.ctx.tmpl[this.name0] = tmplFn;
+      return this.setCtxValue(tmplFn);
     } else if (tmplFn !== void 0) {
       throw new Error("setCtxTemplate must be called with a template function ");
     }

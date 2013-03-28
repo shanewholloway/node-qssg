@@ -64,7 +64,7 @@ class MatchEntry
       @ctx[@name0] = value
   setCtxTemplate: (tmplFn)->
     if typeof tmplFn is 'function'
-      @ctx.tmpl[@name0] = tmplFn
+      @setCtxValue(tmplFn)
     else if tmplFn isnt undefined
       throw new Error("setCtxTemplate must be called with a template function ")
 
