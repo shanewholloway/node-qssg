@@ -27,11 +27,13 @@ class SiteBuilder extends events.EventEmitter
     fsTasks = qutil.invokeList.ordered()
     dirTasks = qutil.createTaskTracker =>
       @fsTaskQueue.extend fsTasks.sort(); fsTasks = null
-    tasks = qutil.createTaskTracker qutil.debounce 20, =>
+    tasks = qutil.createTaskTracker =>
+      logTasksUpdate()
       clearInterval(tidUpdate)
       doneBuildFn()
       @emit('done')
-    tidUpdate = setInterval @logTasksUpdate.bind(@, tasks, trackerMap), @msTasksUpdate||2000
+    logTasksUpdate = @logTasksUpdate.bind(@, tasks, trackerMap)
+    tidUpdate = setInterval logTasksUpdate, @msTasksUpdate||2000
 
     @emit('begin')
     @contentTree.visit (vkind, citem, keyPath)=>
@@ -55,35 +57,49 @@ class SiteBuilder extends events.EventEmitter
 
       vars.adaptVars?(rx_vars)
 
+      statDone = tasks()
       fsTasks.push (taskDone)=>
         @fs.stat rx.fullPath, taskDone.wrap (err, stat)=>
           if stat?
             rx.mtime = stat.mtime
             if citem.mtime? and citem.mtime < stat.mtime
+              statDone()
               return @logUnchanged(rx)
           @logStart(rx)
-          renderAnswer = tasks =>
-            delete trackerMap[relPath]
-            @renderAnswerEx(rx, arguments...)
-          trackerMap[relPath] = renderAnswer
-          citem.render(rx_vars, renderAnswer)
 
-      tasks.defer -> # add an empty task to start when no rendered items are added
+          renderDone = tasks =>
+            delete trackerMap["#{relPath}-finsih"]
+          trackerMap["#{relPath}-finsih"] = renderAnswer
+          renderAnswer = tasks =>
+            delete trackerMap["#{relPath}-start"]
+            @renderAnswerEx(renderDone, rx, arguments...)
+          trackerMap["#{relPath}-start"] = renderAnswer
+          citem.render(rx_vars, renderAnswer)
+          statDone()
+
+      tasks.seed() # add an empty task to start when no rendered items are added
       return true
 
   fs: qutil.fs
-  renderAnswerEx: (rx, err, what)->
-    return @logProblem(err, rx) if err?
-    return @logEmpty(rx) if not what?
+  renderAnswerEx: (done, rx, err, what)->
+    if err?
+      done()
+      return @logProblem(err, rx)
+    if not what?
+      done()
+      return @logEmpty(rx)
 
     mtime = rx.content?.mtime
     if mtime? and rx.mtime and mtime<=rx.mtime
+      done()
       return @logUnchanged(rx)
 
     @fsTaskQueue.do =>
       if what.pipe?
         what.pipe(@fs.createWriteStream(rx.fullPath))
-      else @fs.writeFile(rx.fullPath, what)
+          .on('close', done)
+      else
+        @fs.writeFile rx.fullPath, what, done
       @logChanged(rx)
     return
 

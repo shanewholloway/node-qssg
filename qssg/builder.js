@@ -26,7 +26,7 @@ SiteBuilder = (function(_super) {
   }
 
   SiteBuilder.prototype.build = function(vars, doneBuildFn) {
-    var dirTasks, fsTasks, tasks, tidUpdate, trackerMap,
+    var dirTasks, fsTasks, logTasksUpdate, tasks, tidUpdate, trackerMap,
       _this = this;
     if (typeof vars === 'function') {
       doneBuildFn = vars;
@@ -38,15 +38,17 @@ SiteBuilder = (function(_super) {
       _this.fsTaskQueue.extend(fsTasks.sort());
       return fsTasks = null;
     });
-    tasks = qutil.createTaskTracker(qutil.debounce(20, function() {
+    tasks = qutil.createTaskTracker(function() {
+      logTasksUpdate();
       clearInterval(tidUpdate);
       doneBuildFn();
       return _this.emit('done');
-    }));
-    tidUpdate = setInterval(this.logTasksUpdate.bind(this, tasks, trackerMap), this.msTasksUpdate || 2000);
+    });
+    logTasksUpdate = this.logTasksUpdate.bind(this, tasks, trackerMap);
+    tidUpdate = setInterval(logTasksUpdate, this.msTasksUpdate || 2000);
     this.emit('begin');
     return this.contentTree.visit(function(vkind, citem, keyPath) {
-      var fullPath, relPath, rx, rx_vars;
+      var fullPath, relPath, rx, rx_vars, statDone;
       relPath = keyPath.join('/');
       fullPath = path.resolve(_this.rootPath, relPath);
       if (vkind === 'tree') {
@@ -83,49 +85,59 @@ SiteBuilder = (function(_super) {
       if (typeof vars.adaptVars === "function") {
         vars.adaptVars(rx_vars);
       }
+      statDone = tasks();
       fsTasks.push(function(taskDone) {
         return _this.fs.stat(rx.fullPath, taskDone.wrap(function(err, stat) {
-          var renderAnswer;
+          var renderAnswer, renderDone;
           if (stat != null) {
             rx.mtime = stat.mtime;
             if ((citem.mtime != null) && citem.mtime < stat.mtime) {
+              statDone();
               return _this.logUnchanged(rx);
             }
           }
           _this.logStart(rx);
-          renderAnswer = tasks(function() {
-            delete trackerMap[relPath];
-            return _this.renderAnswerEx.apply(_this, [rx].concat(__slice.call(arguments)));
+          renderDone = tasks(function() {
+            return delete trackerMap["" + relPath + "-finsih"];
           });
-          trackerMap[relPath] = renderAnswer;
-          return citem.render(rx_vars, renderAnswer);
+          trackerMap["" + relPath + "-finsih"] = renderAnswer;
+          renderAnswer = tasks(function() {
+            delete trackerMap["" + relPath + "-start"];
+            return _this.renderAnswerEx.apply(_this, [renderDone, rx].concat(__slice.call(arguments)));
+          });
+          trackerMap["" + relPath + "-start"] = renderAnswer;
+          citem.render(rx_vars, renderAnswer);
+          return statDone();
         }));
       });
-      tasks.defer(function() {});
+      tasks.seed();
       return true;
     });
   };
 
   SiteBuilder.prototype.fs = qutil.fs;
 
-  SiteBuilder.prototype.renderAnswerEx = function(rx, err, what) {
+  SiteBuilder.prototype.renderAnswerEx = function(done, rx, err, what) {
     var mtime, _ref,
       _this = this;
     if (err != null) {
+      done();
       return this.logProblem(err, rx);
     }
     if (what == null) {
+      done();
       return this.logEmpty(rx);
     }
     mtime = (_ref = rx.content) != null ? _ref.mtime : void 0;
     if ((mtime != null) && rx.mtime && mtime <= rx.mtime) {
+      done();
       return this.logUnchanged(rx);
     }
     this.fsTaskQueue["do"](function() {
       if (what.pipe != null) {
-        what.pipe(_this.fs.createWriteStream(rx.fullPath));
+        what.pipe(_this.fs.createWriteStream(rx.fullPath)).on('close', done);
       } else {
-        _this.fs.writeFile(rx.fullPath, what);
+        _this.fs.writeFile(rx.fullPath, what, done);
       }
       return _this.logChanged(rx);
     });
