@@ -98,14 +98,14 @@ SiteBuilder = (function(_super) {
           }
           _this.logStart(rx);
           renderDone = tasks(function() {
-            return delete trackerMap["" + relPath + "-finsih"];
+            return delete trackerMap["" + relPath + "#end"];
           });
-          trackerMap["" + relPath + "-finsih"] = renderAnswer;
+          trackerMap["" + relPath + "#end"] = renderAnswer;
           renderAnswer = tasks(function() {
-            delete trackerMap["" + relPath + "-start"];
+            delete trackerMap["" + relPath];
             return _this.renderAnswerEx.apply(_this, [renderDone, rx].concat(__slice.call(arguments)));
           });
-          trackerMap["" + relPath + "-start"] = renderAnswer;
+          trackerMap["" + relPath] = renderAnswer;
           citem.render(rx_vars, renderAnswer);
           return statDone();
         }));

@@ -68,12 +68,12 @@ class SiteBuilder extends events.EventEmitter
           @logStart(rx)
 
           renderDone = tasks =>
-            delete trackerMap["#{relPath}-finsih"]
-          trackerMap["#{relPath}-finsih"] = renderAnswer
+            delete trackerMap["#{relPath}#end"]
+          trackerMap["#{relPath}#end"] = renderAnswer
           renderAnswer = tasks =>
-            delete trackerMap["#{relPath}-start"]
+            delete trackerMap["#{relPath}"]
             @renderAnswerEx(renderDone, rx, arguments...)
-          trackerMap["#{relPath}-start"] = renderAnswer
+          trackerMap["#{relPath}"] = renderAnswer
           citem.render(rx_vars, renderAnswer)
           statDone()
 
