@@ -156,7 +156,7 @@ Site = (function(_super) {
     bldr = qbuilder.createBuilder(rootPath, this.content);
     this.walker.done(qutil.debounce(1, function() {
       _this.emit('set_content_paths', rootPath, rootUrl);
-      qbuilder.setContentPaths(rootUrl, rootUrl, _this.content);
+      qbuilder.setContentPaths(rootPath, rootUrl, _this.content);
       _this.emit('build_tasks', bldr, rootPath, vars);
       return _this.invokeBuildTasks(vars, qutil.debounce(1, function(err, tasks) {
         _this.emit('build_content', bldr, rootPath, vars);

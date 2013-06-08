@@ -205,13 +205,16 @@ exports.createBuilder = function(rootPath, content) {
 
 exports.setContentPaths = function(rootPath, rootUrl, content) {
   var base;
+  rootPath = path.resolve(rootPath);
   base = {
-    root: this.rootPath,
-    url_root: this.rootUrl,
-    url: function() {
-      var args;
-      args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-      return url.resolve.apply(url, [rootUrl, this.rel].concat(__slice.call(args)));
+    root: rootPath,
+    url_root: rootUrl
+  };
+  Object.defineProperties(base, {
+    url: {
+      get: function() {
+        return url.resolve(rootUrl, this.rel);
+      }
     },
     full: {
       get: function() {
@@ -219,18 +222,18 @@ exports.setContentPaths = function(rootPath, rootUrl, content) {
       }
     },
     relative: {
-      enumerable: true,
       get: function() {
         return this.rel;
       }
     }
-  };
+  });
   return content.visit(function(vkind, citem, keyPath) {
     var relPath;
     relPath = keyPath.join('/');
     citem.paths = Object.create(base, {
       rel: {
-        value: relPath
+        value: relPath,
+        enumerable: true
       }
     });
     return true;
