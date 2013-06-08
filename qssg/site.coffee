@@ -94,12 +94,16 @@ class Site extends events.EventEmitter
 
     return tasks.seed()
 
-  build: (rootPath, vars={}, callback)->
+  build: (rootPath, rootUrl, vars={}, callback)->
     if typeof vars is 'function'
       callback = vars; vars = {}
+    if not rootUrl.match?(/^https?:\/\//)
+      throw new Error('rootUrl required')
 
     bldr = qbuilder.createBuilder(rootPath, @content)
     @walker.done qutil.debounce 1, =>
+      @emit 'set_content_paths', rootPath, rootUrl
+      qbuilder.setContentPaths(rootUrl, rootUrl, @content)
       @emit 'build_tasks', bldr, rootPath, vars
       @invokeBuildTasks vars, qutil.debounce 1, (err, tasks)=>
         @emit 'build_content', bldr, rootPath, vars

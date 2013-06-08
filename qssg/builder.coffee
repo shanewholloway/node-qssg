@@ -10,6 +10,7 @@
 events = require('events')
 
 path = require('path')
+url = require('url')
 qutil = require('./util')
 {inspect} = require('util')
 
@@ -138,4 +139,19 @@ class SiteBuilder extends events.EventEmitter
 exports.SiteBuilder = SiteBuilder
 exports.createBuilder = (rootPath, content)->
   new SiteBuilder(rootPath, content)
+
+exports.setContentPaths = (rootPath, rootUrl, content)->
+  base =
+    root:@rootPath, url_root:@rootUrl,
+    url: (args...)->
+      url.resolve(rootUrl, @rel, args...)
+    full: get: ->
+      path.resolve(rootPath, @rel)
+    relative: {enumerable: true, get: -> @rel}
+
+  content.visit (vkind, citem, keyPath)->
+    relPath = keyPath.join('/')
+    citem.paths = Object.create base,
+      rel: value: relPath
+    return true
 

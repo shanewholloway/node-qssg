@@ -249,5 +249,5 @@ class MetadataPlugin extends KindBasePlugin
     buildTasks.add @buildOrder, (vars, taskFn)=>
       @setMetadata(taskFn)
 
-exports.TemplatePlugin = TemplatePlugin
+exports.MetadataPlugin = MetadataPlugin
 

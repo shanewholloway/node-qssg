@@ -177,6 +177,8 @@ exports.RenderPlugin = RenderPlugin
 
 
 class CompilePlugin extends RenderPlugin
+  rename: BasicPlugin::renameForFormat
+  render: RenderPlugin::render
   context: (entry, source, vars, callback)->
     if not @compile?
       return @notImplemented('compile', entry, callback)
