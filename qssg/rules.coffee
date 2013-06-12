@@ -81,8 +81,7 @@ qrules =
     if fields.split?
       fields = fields.split ' '
     return (entry)->
-      name0 = entry.name0 || entry.name.split('.')[0]
-      mx = rx.exec(name0)
+      mx = rx.exec(entry.name0)
       if mx?
         entry.cx = cx = (entry.cx||{})
         fields.forEach (k,i)->

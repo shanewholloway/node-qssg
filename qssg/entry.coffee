@@ -33,8 +33,9 @@ class MatchEntry
   isDirectory: -> @src.isDirectory()
 
   constructor: (walkEntry, baseTree, pluginMap)->
-    @ext = walkEntry.name.split('.')
-    @name0 = @ext.shift()
+    ext = walkEntry.name.split /\.([^._-\d]*)(?=\.|$)/
+    @name0 = ext.shift()
+    @ext = ext.filter (e)->e
 
     Object.defineProperties @,
       src: value: walkEntry
