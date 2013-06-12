@@ -14,6 +14,8 @@ url = require('url')
 qutil = require('./util')
 {inspect} = require('util')
 
+crypto = require('crypto')
+
 class SiteBuilder extends events.EventEmitter
   fsTaskQueue: qutil.taskQueue(35)
   constructor: (rootPath, @contentTree)->
@@ -75,12 +77,21 @@ class SiteBuilder extends events.EventEmitter
             delete trackerMap["#{relPath}"]
             @renderAnswerEx(renderDone, rx, arguments...)
           trackerMap["#{relPath}"] = renderAnswer
-          citem.render(rx_vars, renderAnswer)
           statDone()
+
+          citem.dstHash = null
+          next = -> citem.render(rx_vars, renderAnswer)
+          h = @newHash()
+          rs = @fs.createReadStream(rx.fullPath)
+          rs.on 'error', -> citem.dstHash = false; next()
+          rs.on 'data', (d)-> h.update(d)
+          rs.on 'end', -> citem.dstHash = h.digest('hex'); next()
+
 
       tasks.seed() # add an empty task to start when no rendered items are added
       return true
 
+  newHash: -> crypto.createHash('sha1')
   fs: qutil.fs
   renderAnswerEx: (done, rx, err, what)->
     if err?
@@ -94,6 +105,16 @@ class SiteBuilder extends events.EventEmitter
     if mtime? and rx.mtime and mtime<=rx.mtime
       done()
       return @logUnchanged(rx)
+
+    if rx.content?.dstHash and not what.pipe?
+      hl = []
+      for enc in ['utf8', 'binary']
+        whatHash = @newHash().update(what, enc).digest('hex')
+        if whatHash == rx.content.dstHash
+          done()
+          return @logUnchanged(rx)
+        hl.push whatHash
+      hl.push rx.content.dstHash
 
     @fsTaskQueue.do =>
       if what.pipe?
