@@ -79,8 +79,12 @@ MatchEntry = (function() {
   };
 
   function MatchEntry(walkEntry, baseTree, pluginMap) {
-    this.ext = walkEntry.name.split('.');
-    this.name0 = this.ext.shift();
+    var ext;
+    ext = walkEntry.name.split(/\.([^._-\d]*)(?=\.|$)/);
+    this.name0 = ext.shift();
+    this.ext = ext.filter(function(e) {
+      return e;
+    });
     Object.defineProperties(this, {
       src: {
         value: walkEntry

@@ -147,9 +147,8 @@ qrules = {
       fields = fields.split(' ');
     }
     return function(entry) {
-      var cx, mx, name0;
-      name0 = entry.name0 || entry.name.split('.')[0];
-      mx = rx.exec(name0);
+      var cx, mx;
+      mx = rx.exec(entry.name0);
       if (mx != null) {
         entry.cx = cx = entry.cx || {};
         fields.forEach(function(k, i) {
